@@ -6,6 +6,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import com.reflex.model.enums.TaskDifficulty;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name="tasks")
@@ -15,6 +17,8 @@ public class Task {
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
 	
+	@NotBlank
+	@Size(max=50)
 	@Column(nullable=false, unique=true)
 	private String name;
 	
@@ -27,10 +31,10 @@ public class Task {
 	@Enumerated(EnumType.STRING)
 	private TaskDifficulty taskDifficulty;
 	
-	@Column(nullable=false)
+	@Column(nullable=false, columnDefinition="TEXT")
 	private String description;
 	
-	@Column(nullable=false)
+	@Column(nullable=false, columnDefinition="TEXT")
 	private String tests;
 
 	public Task() {

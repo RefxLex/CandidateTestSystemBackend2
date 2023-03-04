@@ -25,7 +25,7 @@ public class UserTasks {
 	private User user;
 	
 	@ManyToOne(fetch=FetchType.EAGER, optional=false)
-	@JoinColumn(name="user_id", nullable=false)
+	@JoinColumn(name="task_id", nullable=false)
 	@OnDelete(action = OnDeleteAction.NO_ACTION)
 	private Task task;
 	
@@ -36,10 +36,10 @@ public class UserTasks {
 	@Column(name="assing_date", nullable=false)
 	private Instant assignDate;
 	
-	@Column(nullable=true)
+	@Column(nullable=true, columnDefinition="TEXT")
 	private String result;
 	
-	@Column(nullable=true)
+	@Column(nullable=true, columnDefinition="TEXT")
 	private String code;
 	
 	@Column(name="start_date", nullable=true)
@@ -48,7 +48,7 @@ public class UserTasks {
 	@Column(name="submit_date", nullable=true)
 	private Instant submitDate;
 	
-	@Column(nullable=true)
+	@Column(nullable=true, columnDefinition="TEXT")
 	private String comment;
 	
 	

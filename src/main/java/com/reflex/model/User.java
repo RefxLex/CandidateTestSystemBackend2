@@ -1,9 +1,14 @@
 package com.reflex.model;
 
-import com.reflex.model.enums.UserRole;
+import java.util.HashSet;
+import java.util.Set;
+
 import com.reflex.model.enums.UserStatus;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name="user_profile")
@@ -13,54 +18,70 @@ public class User {
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
 	
+	@NotBlank
+	@Size(max=50)
+	@Email
 	@Column(nullable=false, unique=true)
 	private String email;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(name="user_name", nullable=false, unique=true)
 	private String userName;
 	
+	@NotBlank
+	@Size(max=120)
 	@Column(nullable=false, unique=true)
 	private String password;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(name="first_name",nullable=false)
 	private String firstName;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(name="second_name", nullable=false)
 	private String secondName;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(name="last_name", nullable=false)
 	private String lastName;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(nullable=false, unique=true)
 	private String phone;
 	
-	@Column(nullable=true)
+	@Column(nullable=true, columnDefinition="TEXT")
 	private String info;
-	
-	@Column(name="user_role", nullable=false)
-	@Enumerated(EnumType.STRING)
-	private UserRole userRole;
 	
 	@Column(name="user_status", nullable=false)
 	@Enumerated(EnumType.STRING)
 	private UserStatus userStatus;
+	
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(name = "user_roles", 
+	             joinColumns = @JoinColumn(name = "user_id"),
+	             inverseJoinColumns = @JoinColumn(name = "role_id"))
+	private Set<Role> roles = new HashSet<>();
 
 	public User() {
 		
 	}
 
-	public User(String email, String userName, String password, String firstName, String secondName,
-			String lastName, String phone, String info, UserRole userRole, UserStatus userStatus) {
+	public User(String userName, String email, String password, String firstName, String secondName,
+			String lastName, String phone, String info, UserStatus userStatus) {
 		
-		this.email = email;
 		this.userName = userName;
+		this.email = email;
 		this.password = password;
 		this.firstName = firstName;
 		this.secondName = secondName;
 		this.lastName = lastName;
 		this.phone = phone;
 		this.info = info;
-		this.userRole = userRole;
 		this.userStatus = userStatus;
 	}
 
@@ -135,14 +156,14 @@ public class User {
 	public void setInfo(String info) {
 		this.info = info;
 	}
-
-	public UserRole getUserRole() {
+	/*
+	public ERole getUserRole() {
 		return userRole;
 	}
 
-	public void setUserRole(UserRole userRole) {
+	public void setUserRole(ERole userRole) {
 		this.userRole = userRole;
-	}
+	}*/
 
 	public UserStatus getUserStatus() {
 		return userStatus;
@@ -151,5 +172,13 @@ public class User {
 	public void setUserStatus(UserStatus userStatus) {
 		this.userStatus = userStatus;
 	}
+	
+	public Set<Role> getRoles() {
+		    return roles;
+		  }
+
+	public void setRoles(Set<Role> roles) {
+		    this.roles = roles;
+		  }
 	
 }
