@@ -9,37 +9,43 @@ public class Topic {
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
+	
 	@Column(nullable=false, unique=true)
-	private String topic;
+	private String name;
+	
+	@Column(nullable=false)
+	private boolean deleted = false;
 	
 	public Topic() {
 		
 	}
 	
-	public Topic(String topic) {
-
-		this.topic = topic;
+	public Topic(String name) {
+		this.name = name;
 	}
 
 	public Long getId() {
 		return id;
 	}
-
 	public void setId(Long id) {
 		this.id = id;
 	}
-
-	public String getTopic() {
-		return topic;
+	public String getName() {
+		return name;
 	}
-
-	public void setTopic(String topic) {
-		this.topic = topic;
+	public void setName(String name) {
+		this.name = name;
 	}
-
-	@Override
-	public String toString() {
-		return "Topic [id=" + id + ", topic=" + topic + "]";
+	public boolean isDeleted() {
+		return deleted;
+	}
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
 	}
 	
+	@Override
+	public String toString() {
+		return "Topic [id=" + id + ", name=" + name + ", deleted=" + deleted + "]";
+	}
+
 }

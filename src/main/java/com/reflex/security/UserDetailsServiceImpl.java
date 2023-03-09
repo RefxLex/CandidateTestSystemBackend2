@@ -18,6 +18,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	  @Autowired
 	  UserRepository userRepository;
 
+	  /*
 	  @Override
 	  @Transactional
 	  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -25,7 +26,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	        .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + username));
 
 	    return UserDetailsImpl.build(user);
+	  } */
+	  
+	  @Override
+	  @Transactional
+	  public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+	    User user = userRepository.findByemail(email)
+	        .orElseThrow(() -> new UsernameNotFoundException("User Not Found with email: " + email));
+
+	    return UserDetailsImpl.build(user);
+	    
 	  }
+	  
 }
 
 

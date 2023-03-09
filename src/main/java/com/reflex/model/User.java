@@ -1,5 +1,6 @@
 package com.reflex.model;
 
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -60,6 +61,16 @@ public class User {
 	@Column(name="user_status", nullable=false)
 	@Enumerated(EnumType.STRING)
 	private UserStatus userStatus;
+	
+	@Column(nullable=true)
+	private Date lastActivity;
+	
+	@Column(nullable=false)
+	private boolean deleted = false;
+	
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="user_id")
+	private Set<UserTasks> userTasks = new HashSet<>();
 	
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "user_roles", 
@@ -156,14 +167,6 @@ public class User {
 	public void setInfo(String info) {
 		this.info = info;
 	}
-	/*
-	public ERole getUserRole() {
-		return userRole;
-	}
-
-	public void setUserRole(ERole userRole) {
-		this.userRole = userRole;
-	}*/
 
 	public UserStatus getUserStatus() {
 		return userStatus;
@@ -175,10 +178,33 @@ public class User {
 	
 	public Set<Role> getRoles() {
 		    return roles;
-		  }
+	}
 
 	public void setRoles(Set<Role> roles) {
 		    this.roles = roles;
-		  }
+	}
+
+	public boolean isDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
+	}
+
+	public Set<UserTasks> getUserTasks() {
+		return userTasks;
+	}
+
+	public void setUserTasks(Set<UserTasks> userTasks) {
+		this.userTasks = userTasks;
+	}
+
+	@Override
+	public String toString() {
+		return "User [id=" + id + ", email=" + email + ", userName=" + userName + ", password=" + password
+				+ ", firstName=" + firstName + ", secondName=" + secondName + ", lastName=" + lastName + ", phone="
+				+ phone + ", info=" + info + ", userStatus=" + userStatus + ", lastActivity=" + lastActivity + "]";
+	}
 	
 }

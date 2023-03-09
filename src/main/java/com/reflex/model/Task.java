@@ -36,6 +36,9 @@ public class Task {
 	
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String tests;
+	
+	@Column(nullable=false)
+	private boolean deleted = false;
 
 	public Task() {
 		
@@ -96,6 +99,14 @@ public class Task {
 
 	public void setTests(String tests) {
 		this.tests = tests;
+	}
+
+	public boolean isDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
 	}
 	
 }
