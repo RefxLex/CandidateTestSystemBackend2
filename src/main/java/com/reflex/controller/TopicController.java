@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,10 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.reflex.model.Topic;
-import com.reflex.model.User;
 import com.reflex.repository.TopicRepository;
 import com.reflex.request.TopicRequest;
-import com.reflex.response.MessageResponse;
+
+import jakarta.validation.Valid;
 
 @RestController
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -32,6 +33,7 @@ public class TopicController {
 	TopicRepository topicRepository;
 	
 	@GetMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<Topic> getTopicById(@PathVariable("id") Long id){
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(id).orElseThrow(() ->
         	new ResponseStatusException(HttpStatus.NOT_FOUND, "No such Topic")));
@@ -39,6 +41,7 @@ public class TopicController {
 	}
 	
 	@GetMapping("/all")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<List<Topic>> getAllTopics(){
 		
 		List<Topic> topicList = new ArrayList<Topic>();
@@ -52,7 +55,8 @@ public class TopicController {
 	}
 	
 	@PostMapping("/create")
-	public ResponseEntity<Topic> createTopic(@RequestBody TopicRequest topicRequest){
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<Topic> createTopic(@Valid @RequestBody TopicRequest topicRequest){
 		
 		if(topicRepository.existsByname(topicRequest.getName())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic already exist");
@@ -62,7 +66,8 @@ public class TopicController {
 	}
 	
 	@PutMapping("/{id}")
-	public ResponseEntity<Topic> updateTopic(@PathVariable("id") Long id, @RequestBody TopicRequest topicRequest){
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<Topic> updateTopic(@PathVariable("id") Long id, @Valid @RequestBody TopicRequest topicRequest){
 		if(topicRepository.existsById(id)==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + id);
 		}
@@ -74,6 +79,7 @@ public class TopicController {
 	
 	// soft delete
 	@PutMapping("/delete/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> deleteTopic(@PathVariable("id") Long id){
 		if(topicRepository.existsById(id)==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + id);

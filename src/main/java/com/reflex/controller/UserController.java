@@ -57,8 +57,6 @@ public class UserController {
 	@Autowired
 	PasswordEncoder encoder;
 	
-	// TODO: error catch?
-	
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponse> getUserById(@PathVariable("id") Long id) {
         Optional<User> user = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
@@ -68,9 +66,7 @@ public class UserController {
         	user.get().getId(),
         	user.get().getEmail(),
         	user.get().getUserName(),
-        	user.get().getFirstName(),
-        	user.get().getSecondName(),
-        	user.get().getLastName(),
+        	user.get().getFullName(),
         	user.get().getPhone(),
         	user.get().getInfo(),
         	user.get().getUserStatus().toString());
@@ -78,13 +74,15 @@ public class UserController {
         return new ResponseEntity<>(userProfile, HttpStatus.OK);
     }
     
-    @GetMapping("/find")
+    @GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getUserByStatus(
     		@RequestParam String status,
     		@RequestParam (defaultValue = "0") int page,
     		@RequestParam (defaultValue = "10") int size,
     		@RequestParam (required = false) String orderBy){
+    	
+    // TODO:check if user is deleted
     	
     	List<User> users = new ArrayList<User>();
     	Pageable paging = PageRequest.of(page, size);
@@ -103,7 +101,6 @@ public class UserController {
 	    			System.out.println("order by score");
 	    		}
 	    		case "activity": {
-	    			
 	    			pageUsers = userRepository.findByuserStatusContainingOrderBylastActivityDesc(status, paging);
 	    		}
 	    		default:
@@ -120,7 +117,6 @@ public class UserController {
 	    	
 	    	users = pageUsers.getContent();
 	    	
-	    	
 	        Map<String, Object> response = new HashMap<>();
 	        response.put("tutorials", users);
 	        response.put("currentPage", pageUsers.getNumber());
@@ -134,7 +130,35 @@ public class UserController {
     	
     }
     
-    
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getUserByName(
+		@RequestParam String name,
+		@RequestParam (defaultValue = "0") int page,
+		@RequestParam (defaultValue = "10") int size) {
+			
+	// TODO:check if user is deleted
+    	
+	    List<User> users = new ArrayList<User>();
+	    Pageable paging = PageRequest.of(page, size);
+	    Page<User> pageUsers;
+	    try {
+	    	pageUsers = userRepository.findByfullNameLikeOrderByfullNameDesc(name, paging);
+	    	users = pageUsers.getContent();
+	    	
+	        Map<String, Object> response = new HashMap<>();
+	        response.put("tutorials", users);
+	        response.put("currentPage", pageUsers.getNumber());
+	        response.put("totalItems", pageUsers.getTotalElements());
+	        response.put("totalPages", pageUsers.getTotalPages());
+	        return new ResponseEntity<>(response, HttpStatus.OK);
+	    }
+    	catch (Exception e) {
+    		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+    	}
+	
+	}
+
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	  public ResponseEntity<?> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
@@ -154,9 +178,7 @@ public class UserController {
 	    		generatedUserName,
 	            signUpRequest.getEmail(),
 	            encoder.encode(generatedPassword),
-	            signUpRequest.getFirstName(),
-	            signUpRequest.getSecondName(),
-	            signUpRequest.getLastName(),
+	            signUpRequest.getFullName(),
 	            signUpRequest.getPhone(),
 	            signUpRequest.getInfo(),
 	            UserStatus.INVITED );
@@ -174,15 +196,13 @@ public class UserController {
 	  
 	  @PutMapping("/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	    public ResponseEntity<User> updateUser(@PathVariable("id") Long id, @RequestBody SignupRequest signUpRequest) {
+	    public ResponseEntity<User> updateUser(@PathVariable("id") Long id, @Valid @RequestBody SignupRequest signUpRequest) {
 	        Optional<User> oldUser = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
 	                new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User")));
 	        if (oldUser.isPresent()) {
 	            User newUser = oldUser.get();
 	            newUser.setEmail(signUpRequest.getEmail());
-	            newUser.setFirstName(signUpRequest.getFirstName());
-	            newUser.setSecondName(signUpRequest.getSecondName());
-	            newUser.setLastName(signUpRequest.getLastName());
+	            newUser.setFullName(signUpRequest.getFullName());
 	            newUser.setPhone(signUpRequest.getPhone());
 	            newUser.setInfo(signUpRequest.getInfo());
 

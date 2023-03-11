@@ -33,4 +33,6 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  Page<User> findByuserStatusContainingOrderByfirstNameDesc(String userStatus, Pageable pageable);
 		
 	  Page<User> findByuserStatusContainingOrderBylastActivityDesc(String userStatus, Pageable pageable);
+	  
+	  Page<User> findByfullNameLikeOrderByfullNameDesc(String fullName,Pageable pageable);
 }

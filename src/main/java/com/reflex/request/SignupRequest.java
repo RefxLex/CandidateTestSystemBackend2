@@ -19,16 +19,8 @@ public class SignupRequest {
     //private String password;
     
 	@NotBlank
-	@Size(max=20)
-	private String firstName;
-	
-	@NotBlank
-	@Size(max=20)
-	private String secondName;
-	
-	@NotBlank
-	@Size(max=20)
-	private String lastName;
+	@Size(max=60)
+	private String fullName;
 	
 	@NotBlank
 	@Size(max=20)
@@ -61,32 +53,16 @@ public class SignupRequest {
         this.password = password;
     }*/
 
-	public String getFirstName() {
-		return firstName;
-	}
-
-	public void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
-
-	public String getSecondName() {
-		return secondName;
-	}
-
-	public void setSecondName(String secondName) {
-		this.secondName = secondName;
-	}
-
-	public String getLastName() {
-		return lastName;
-	}
-
-	public void setLastName(String lastName) {
-		this.lastName = lastName;
-	}
-
 	public String getPhone() {
 		return phone;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
 	}
 
 	public void setPhone(String phone) {

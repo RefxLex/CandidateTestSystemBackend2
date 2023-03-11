@@ -1,6 +1,8 @@
 package com.reflex.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name="topics")
@@ -10,6 +12,8 @@ public class Topic {
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
 	
+	@NotBlank
+	@Size(max=20)
 	@Column(nullable=false, unique=true)
 	private String name;
 	

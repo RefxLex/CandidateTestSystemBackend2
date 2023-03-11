@@ -36,19 +36,9 @@ public class User {
 	private String password;
 	
 	@NotBlank
-	@Size(max=20)
-	@Column(name="first_name",nullable=false)
-	private String firstName;
-	
-	@NotBlank
-	@Size(max=20)
-	@Column(name="second_name", nullable=false)
-	private String secondName;
-	
-	@NotBlank
-	@Size(max=20)
-	@Column(name="last_name", nullable=false)
-	private String lastName;
+	@Size(max=60)
+	@Column(name="full_name",nullable=false)
+	private String fullName;
 	
 	@NotBlank
 	@Size(max=20)
@@ -82,15 +72,12 @@ public class User {
 		
 	}
 
-	public User(String userName, String email, String password, String firstName, String secondName,
-			String lastName, String phone, String info, UserStatus userStatus) {
+	public User(String userName, String email, String password, String fullName, String phone, String info, UserStatus userStatus) {
 		
 		this.userName = userName;
 		this.email = email;
 		this.password = password;
-		this.firstName = firstName;
-		this.secondName = secondName;
-		this.lastName = lastName;
+		this.fullName = fullName;
 		this.phone = phone;
 		this.info = info;
 		this.userStatus = userStatus;
@@ -128,28 +115,20 @@ public class User {
 		this.password = password;
 	}
 
-	public String getFirstName() {
-		return firstName;
+	public String getFullName() {
+		return fullName;
 	}
 
-	public void setFirstName(String firstName) {
-		this.firstName = firstName;
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
 	}
 
-	public String getSecondName() {
-		return secondName;
+	public Date getLastActivity() {
+		return lastActivity;
 	}
 
-	public void setSecondName(String secondName) {
-		this.secondName = secondName;
-	}
-
-	public String getLastName() {
-		return lastName;
-	}
-
-	public void setLastName(String lastName) {
-		this.lastName = lastName;
+	public void setLastActivity(Date lastActivity) {
+		this.lastActivity = lastActivity;
 	}
 
 	public String getPhone() {
@@ -203,8 +182,8 @@ public class User {
 	@Override
 	public String toString() {
 		return "User [id=" + id + ", email=" + email + ", userName=" + userName + ", password=" + password
-				+ ", firstName=" + firstName + ", secondName=" + secondName + ", lastName=" + lastName + ", phone="
-				+ phone + ", info=" + info + ", userStatus=" + userStatus + ", lastActivity=" + lastActivity + "]";
+				+ ", fullName=" + fullName + ", phone=" + phone + ", info=" + info + ", userStatus=" + userStatus
+				+ ", lastActivity=" + lastActivity + "]";
 	}
-	
+
 }

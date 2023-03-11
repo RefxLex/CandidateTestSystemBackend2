@@ -5,9 +5,7 @@ public class UserProfileResponse {
 	private Long id;
 	private String email;
 	private String userName;
-	private String firstName;
-	private String secondName;
-	private String lastName;
+	private String fullName;
 	private String phone;
 	private String info;
 	private String userStatus;
@@ -16,15 +14,12 @@ public class UserProfileResponse {
 		
 	}
 
-	public UserProfileResponse(Long id, String email, String userName, String firstName, String secondName,
-			String lastName, String phone, String info, String userStatus) {
+	public UserProfileResponse(Long id, String email, String userName, String fullName, String phone, String info, String userStatus) {
 		super();
 		this.id = id;
 		this.email = email;
 		this.userName = userName;
-		this.firstName = firstName;
-		this.secondName = secondName;
-		this.lastName = lastName;
+		this.fullName = fullName;
 		this.phone = phone;
 		this.info = info;
 		this.userStatus = userStatus;
@@ -54,28 +49,12 @@ public class UserProfileResponse {
 		this.userName = userName;
 	}
 
-	public String getFirstName() {
-		return firstName;
+	public String getFullName() {
+		return fullName;
 	}
 
-	public void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
-
-	public String getSecondName() {
-		return secondName;
-	}
-
-	public void setSecondName(String secondName) {
-		this.secondName = secondName;
-	}
-
-	public String getLastName() {
-		return lastName;
-	}
-
-	public void setLastName(String lastName) {
-		this.lastName = lastName;
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
 	}
 
 	public String getPhone() {
