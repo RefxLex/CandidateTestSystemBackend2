@@ -3,14 +3,17 @@ package com.reflex.controller;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.reflex.model.Task;
+import com.reflex.model.TaskTestInput;
 import com.reflex.model.Topic;
 import com.reflex.model.User;
 import com.reflex.model.enums.TaskDifficulty;
+import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.TopicRepository;
 import com.reflex.request.TaskRequest;
@@ -53,40 +58,60 @@ public class TaskController {
         return new ResponseEntity<>(task.get(), HttpStatus.OK);
 	}
 	
-	@GetMapping("/find")
+	@GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<Map<String, Object>> getTaskByFilter(
 			@RequestParam (required=false) String name,
-			@RequestParam String topic,
-			@RequestParam String difficulty,
+			@RequestParam (required=false) Long topic,
+			@RequestParam (required=false) String level,
 			@RequestParam (defaultValue = "0") int page,
-			@RequestParam (defaultValue = "10") int size){
+			@RequestParam (defaultValue = "10") int size,
+    		@RequestParam (defaultValue = "ASC") String direction){
 		
 		List<Task> tasks = new ArrayList<Task>();
-		Pageable paging = PageRequest.of(page, size);
+
+		Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), "name"));		
 		Page<Task> pageTasks;
+
+		if( (name!=null) && (topic==null) && (level==null)) {
+			pageTasks = taskRepository.selectByNameWithPagination(name, paging);
+		}
+		else if((name!=null) && (topic!=null) && (level==null)) {
+			pageTasks = taskRepository.selectByTopicAndNameWithPagination(name, topic, paging);
+		}
+		else if((name==null) && (topic!=null) && (level!=null)) {
+			pageTasks = taskRepository.selectByTopicAndLevelWithPagination(level, topic, paging);
+		}
+		else if((name!=null) && (topic==null) && (level!=null)) {
+			pageTasks = taskRepository.selectByNameAndLevelWithPagination(name, level, paging);
+		}
+		else if((name!=null) && (topic!=null) && (level!=null)) {
+			pageTasks = taskRepository.selectByNameAndLevelAndTopicWithPagination(name, topic, level, paging);
+		}
+		else if((name==null) && (topic!=null) && (level==null)) {
+			pageTasks = taskRepository.selectByTopicWithPagination(topic, paging);
+		}
+		else if((name==null) && (topic==null) && (level!=null)) {
+			pageTasks = taskRepository.selectByLevelWithPagination(level, paging);
+		}
+		else {
+			pageTasks = taskRepository.selectAllWithPagination(paging);
+		}
+
 		try {
-			if(name==null) {
-				pageTasks = taskRepository.findBytopicIdAndBytaskDifficultyAndBynameLikeOrderBynameDesc(topic, difficulty, name, paging);
-			}
-			else {
-				pageTasks = taskRepository.findBytopicIdAndBytaskDifficultyOrderBynameDesc(topic, difficulty, paging);
-			}
-			
-			tasks = pageTasks.getContent();
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("tutorials", tasks);
-	        response.put("currentPage", pageTasks.getNumber());
-	        response.put("totalItems", pageTasks.getTotalElements());
+        
+			tasks = pageTasks.getContent();			
+	        Map<String, Object> response = new HashMap<>();	        
+	        response.put("tasks", tasks);	        
+	        response.put("currentPage", pageTasks.getNumber());	        
+	        response.put("totalItems", pageTasks.getTotalElements());      
 	        response.put("totalPages", pageTasks.getTotalPages());
 	        return new ResponseEntity<>(response, HttpStatus.OK);
-			
-			
 		}
-    	catch (Exception e) {
-    		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-    	}
-			
+		catch(Exception e){
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		
 	}
 	
 	@GetMapping("/difficulty")
@@ -108,7 +133,12 @@ public class TaskController {
 
         Optional<TaskDifficulty> difficulty = TaskDifficulty.byNameIgnoreCase(taskRequest.getTaskDifficulty());
         if(difficulty.isPresent()) {
-            Task task = new Task(taskRequest.getName(), topic.get(), difficulty.get(), taskRequest.getDescription(), taskRequest.getTests());
+            Task task = new Task(
+            		taskRequest.getName(),
+            		topic.get(),
+            		difficulty.get().name(),
+            		taskRequest.getDescription(),
+            		taskRequest.getTaskTestInput());
             return new ResponseEntity<>(taskRepository.save(task), HttpStatus.CREATED);
         }
         else {
@@ -135,9 +165,9 @@ public class TaskController {
 	        Task newTask = oldTask.get();
 	        newTask.setName(taskRequest.getName());
 	        newTask.setTopic(topic.get());
-	        newTask.setTaskDifficulty(difficulty.get());
+	        newTask.setTaskDifficulty(difficulty.get().name());
 	        newTask.setDescription(taskRequest.getDescription());
-	        newTask.setTests(taskRequest.getTests());
+	        newTask.setTaskTestInput(taskRequest.getTaskTestInput());
 	  
 	        return new ResponseEntity<>(taskRepository.save(newTask), HttpStatus.OK);
 	    }

@@ -1,6 +1,12 @@
 package com.reflex.request;
 
+import java.util.ArrayList;
+import java.util.Set;
+
+import com.reflex.model.TaskTestInput;
+
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
 public class TaskRequest {
@@ -18,8 +24,8 @@ public class TaskRequest {
 	
 	private String description;
 	
-	@NotBlank
-	private String tests;
+	@NotEmpty
+	private Set<TaskTestInput> taskTestInput;
 
 	public String getName() {
 		return name;
@@ -53,12 +59,12 @@ public class TaskRequest {
 		this.description = description;
 	}
 
-	public String getTests() {
-		return tests;
+	public Set<TaskTestInput> getTaskTestInput() {
+		return taskTestInput;
 	}
 
-	public void setTests(String tests) {
-		this.tests = tests;
+	public void setTaskTestInput(Set<TaskTestInput> taskTestInput) {
+		this.taskTestInput = taskTestInput;
 	}
-	
+
 }

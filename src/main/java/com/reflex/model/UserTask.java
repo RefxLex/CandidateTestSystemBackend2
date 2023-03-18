@@ -2,64 +2,69 @@ package com.reflex.model;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.*;
 
 @Entity
 @Table(name="user_tasks")
-public class UserTasks {
+public class UserTask {
 	
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
 	
-	/*
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="user_id", nullable=false)
 	@OnDelete(action = OnDeleteAction.NO_ACTION)
 	@JsonIgnore
-	private User user; */
+	private User user;
 	
-	@ManyToOne(fetch=FetchType.EAGER, optional=false)
+	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="task_id", nullable=false)
 	@OnDelete(action = OnDeleteAction.NO_ACTION)
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	private Task task;
 	
-	/*
-	@Column(name="task_status", nullable=false)
-	@Enumerated(EnumType.STRING)
-	private TaskStatus taskStatus; */
-	
-	@Column(name="assing_date", nullable=false)
+	@Column(name="assing_date", nullable=false, columnDefinition="timestamptz")
 	private Instant assignDate;
-	
-	@Column(nullable=true, columnDefinition="TEXT")
-	private String result;
 	
 	@Column(nullable=true, columnDefinition="TEXT")
 	private String code;
 	
-	@Column(name="start_date", nullable=true)
+	@Column(name="start_date", nullable=true, columnDefinition="timestamptz")
 	private Instant startDate;
 	
-	@Column(name="submit_date", nullable=true)
+	@Column(name="submit_date", nullable=true, columnDefinition="timestamptz")
 	private Instant submitDate;
 	
 	@Column(nullable=true, columnDefinition="TEXT")
 	private String comment;
 	
-	public UserTasks() {
+	@Column(name="language_id", nullable=false)
+	private int taskCodeLanguageId;
+	
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="user_task_id")
+	private Set<UserTaskResult> userTaskResult = new HashSet<>();
+	
+	public UserTask() {
 		
 	}
 
-	public UserTasks(Task task, Instant assignDate) {
-
+	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId) {
+		
+		this.user = user;
 		this.task = task;
 		this.assignDate = assignDate;
+		this.taskCodeLanguageId = taskCodeLanguageId;
 
 	}
 
@@ -85,14 +90,6 @@ public class UserTasks {
 
 	public void setAssignDate(Instant assignDate) {
 		this.assignDate = assignDate;
-	}
-
-	public String getResult() {
-		return result;
-	}
-
-	public void setResult(String result) {
-		this.result = result;
 	}
 
 	public String getCode() {
@@ -125,6 +122,37 @@ public class UserTasks {
 
 	public void setComment(String comment) {
 		this.comment = comment;
+	}
+
+	public int getTaskCodeLanguageId() {
+		return taskCodeLanguageId;
+	}
+
+	public void setTaskCodeLanguageId(int taskCodeLanguageId) {
+		this.taskCodeLanguageId = taskCodeLanguageId;
+	}
+	
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	public Set<UserTaskResult> getUserTaskResult() {
+		return userTaskResult;
+	}
+
+	public void setUserTaskResult(Set<UserTaskResult> userTaskResult) {
+		this.userTaskResult = userTaskResult;
+	}
+
+	@Override
+	public String toString() {
+		return "UserTask [id=" + id + ", user=" + user + ", task=" + task + ", assignDate=" + assignDate + ", code="
+				+ code + ", startDate=" + startDate + ", submitDate=" + submitDate + ", comment=" + comment
+				+ ", taskCodeLanguageId=" + taskCodeLanguageId + ", userTaskResult=" + userTaskResult + "]";
 	}
 	
 }

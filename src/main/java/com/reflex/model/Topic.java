@@ -24,29 +24,34 @@ public class Topic {
 		
 	}
 	
-	public Topic(String name) {
+	public Topic(@NotBlank String name) {
 		this.name = name;
 	}
 
 	public Long getId() {
 		return id;
 	}
+
 	public void setId(Long id) {
 		this.id = id;
 	}
+
 	public String getName() {
 		return name;
 	}
+
 	public void setName(String name) {
 		this.name = name;
 	}
+
 	public boolean isDeleted() {
 		return deleted;
 	}
+
 	public void setDeleted(boolean deleted) {
 		this.deleted = deleted;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "Topic [id=" + id + ", name=" + name + ", deleted=" + deleted + "]";

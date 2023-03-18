@@ -15,11 +15,51 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 	
 	Boolean existsByname(String name);
 	
-	//Page<User> findByuserStatusContainingOrderByfirstNameDesc(String userStatus, Pageable pageable);
-	//@Query("SELECT * FROM tasks WHERE topic_id = topicId AND ")
-	//Page<Task> selectLikeTopicAndDifficulty (@Param ("topic_id")Long topicId, @Param ("difficulty") String difficulty, Pageable pageable);
+	@Query(
+			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByNameWithPagination(@Param("name") String name, Pageable pageable);
 	
-	Page<Task> findBytopicIdAndBytaskDifficultyOrderBynameDesc (String topicId, String taskDifficulty, Pageable pageable);
+	@Query(
+			  value = "SELECT * FROM tasks WHERE topic_id = :topicId AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByTopicWithPagination(@Param("topicId") Long topicId, Pageable pageable);
 	
-	Page<Task> findBytopicIdAndBytaskDifficultyAndBynameLikeOrderBynameDesc (String topicId, String taskDifficulty, String name, Pageable pageable);
+	@Query(
+			  value = "SELECT * FROM tasks WHERE task_difficulty = :level AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByLevelWithPagination(@Param("level") String level, Pageable pageable);
+	
+	@Query(
+			  value = "SELECT * FROM tasks WHERE deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectAllWithPagination(Pageable pageable);
+	
+	@Query(
+			  value = "SELECT * FROM tasks WHERE topic_id = :topicId AND name LIKE :name% AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByTopicAndNameWithPagination(@Param("name") String name, @Param("topicId") Long topicId, Pageable pageable);
+	
+	@Query(
+			  value = "SELECT * FROM tasks WHERE topic_id = :topicId AND task_difficulty = :level AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByTopicAndLevelWithPagination(@Param("level") String level, @Param("topicId") Long topicId, Pageable pageable);
+	
+	@Query(
+			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND task_difficulty = :level AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByNameAndLevelWithPagination(@Param("name") String name, @Param("level") String level, Pageable pageable);
+	
+	@Query(
+			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND topic_id = :topicId AND task_difficulty = :level AND deleted = false",
+			  countQuery = "SELECT count(*) FROM tasks",
+			  nativeQuery = true)
+	Page<Task> selectByNameAndLevelAndTopicWithPagination(@Param("name") String name, @Param("topicId") Long topicId, @Param("level") String level, Pageable pageable);
 }

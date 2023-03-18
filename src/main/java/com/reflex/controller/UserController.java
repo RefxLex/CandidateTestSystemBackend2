@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.reflex.model.Role;
 import com.reflex.model.User;
 import com.reflex.model.enums.ERole;
+import com.reflex.model.enums.TaskDifficulty;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.RoleRepository;
 import com.reflex.repository.UserRepository;
@@ -69,7 +71,7 @@ public class UserController {
         	user.get().getFullName(),
         	user.get().getPhone(),
         	user.get().getInfo(),
-        	user.get().getUserStatus().toString());
+        	user.get().getUserStatus());
         
         return new ResponseEntity<>(userProfile, HttpStatus.OK);
     }
@@ -80,45 +82,18 @@ public class UserController {
     		@RequestParam String status,
     		@RequestParam (defaultValue = "0") int page,
     		@RequestParam (defaultValue = "10") int size,
-    		@RequestParam (required = false) String orderBy){
-    	
-    // TODO:check if user is deleted
-    	
+    		@RequestParam (defaultValue = "name") String sort,
+    		@RequestParam (defaultValue = "ASC") String direction){
+    	    	
     	List<User> users = new ArrayList<User>();
-    	Pageable paging = PageRequest.of(page, size);
+    	Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sort));
     	Page<User> pageUsers;
     	
     	try {
-    		
-	    	if(status=="submitted" || status=="approved" || status=="rejected") {
-	    		
-	        	switch (orderBy) {
-	    		case "name": {
-	    			pageUsers = userRepository.findByuserStatusContainingOrderByfirstNameDesc(status, paging);
-	    		}
-	    		case "score": {
-	    			// TODO: order by score
-	    			System.out.println("order by score");
-	    		}
-	    		case "activity": {
-	    			pageUsers = userRepository.findByuserStatusContainingOrderBylastActivityDesc(status, paging);
-	    		}
-	    		default:
-	    			pageUsers = userRepository.findByuserStatusContainingOrderBylastActivityDesc(status, paging);
-	    		}
-	    		
-	    	}else if(status=="invited" || status=="started" ) {
-	    		
-	    		pageUsers = userRepository.findByuserStatusContainingOrderByfirstNameDesc(status, paging);
-	    	}
-	    	else {
-	    		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No such status=" + status);
-	    	}
-	    	
+    		pageUsers = userRepository.selectByUserStatusWithPagination(status, paging);
 	    	users = pageUsers.getContent();
-	    	
 	        Map<String, Object> response = new HashMap<>();
-	        response.put("tutorials", users);
+	        response.put("users", users);
 	        response.put("currentPage", pageUsers.getNumber());
 	        response.put("totalItems", pageUsers.getTotalElements());
 	        response.put("totalPages", pageUsers.getTotalPages());
@@ -135,19 +110,19 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> getUserByName(
 		@RequestParam String name,
 		@RequestParam (defaultValue = "0") int page,
-		@RequestParam (defaultValue = "10") int size) {
+		@RequestParam (defaultValue = "10") int size,
+		@RequestParam (defaultValue = "name") String sort,
+		@RequestParam (defaultValue = "ASC") String direction) {
 			
-	// TODO:check if user is deleted
-    	
 	    List<User> users = new ArrayList<User>();
-	    Pageable paging = PageRequest.of(page, size);
+	    Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sort));
 	    Page<User> pageUsers;
 	    try {
-	    	pageUsers = userRepository.findByfullNameLikeOrderByfullNameDesc(name, paging);
+	    	pageUsers = userRepository.selectByUserNameWithPagination(name, paging);
 	    	users = pageUsers.getContent();
 	    	
 	        Map<String, Object> response = new HashMap<>();
-	        response.put("tutorials", users);
+	        response.put("users", users);
 	        response.put("currentPage", pageUsers.getNumber());
 	        response.put("totalItems", pageUsers.getTotalElements());
 	        response.put("totalPages", pageUsers.getTotalPages());
@@ -181,7 +156,7 @@ public class UserController {
 	            signUpRequest.getFullName(),
 	            signUpRequest.getPhone(),
 	            signUpRequest.getInfo(),
-	            UserStatus.INVITED );
+	            UserStatus.invited.name());
 
 	    Set<Role> roles = new HashSet<>();
 	    Role userRole = roleRepository.findByname(ERole.ROLE_USER)

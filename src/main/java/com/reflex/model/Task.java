@@ -1,8 +1,13 @@
 package com.reflex.model;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.reflex.model.enums.TaskDifficulty;
 
 import jakarta.persistence.*;
@@ -22,20 +27,24 @@ public class Task {
 	@Column(nullable=false, unique=true)
 	private String name;
 	
-	@ManyToOne(fetch=FetchType.EAGER, optional=false)
+	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="topic_id", nullable=false)
 	@OnDelete(action=OnDeleteAction.NO_ACTION)
-	private Topic topic;
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+	public Topic topic;
 	
+	@NotBlank
+	@Size(max=50)
 	@Column(name="task_difficulty", nullable=false)
-	@Enumerated(EnumType.STRING)
-	private TaskDifficulty taskDifficulty;
+	private String taskDifficulty;
 	
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String description;
 	
-	@Column(nullable=false, columnDefinition="TEXT")
-	private String tests;
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="task_id")
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+	private Set<TaskTestInput> taskTestInput = new HashSet<>();
 	
 	@Column(nullable=false)
 	private boolean deleted = false;
@@ -44,13 +53,14 @@ public class Task {
 		
 	}
 	
-	public Task(String name, Topic topic, TaskDifficulty taskDifficulty, String description, String tests) {
+	public Task(@NotBlank String name, Topic topic, @NotBlank String taskDifficulty, String description, 
+			Set<TaskTestInput> taskTestInput){
 
 		this.name = name;
 		this.topic = topic;
 		this.taskDifficulty = taskDifficulty;
 		this.description = description;
-		this.tests = tests;
+		this.taskTestInput = taskTestInput;
 	}
 
 	public Long getId() {
@@ -77,11 +87,11 @@ public class Task {
 		this.topic = topic;
 	}
 
-	public TaskDifficulty getTaskDifficulty() {
+	public String getTaskDifficulty() {
 		return taskDifficulty;
 	}
 
-	public void setTaskDifficulty(TaskDifficulty taskDifficulty) {
+	public void setTaskDifficulty(String taskDifficulty) {
 		this.taskDifficulty = taskDifficulty;
 	}
 
@@ -93,12 +103,12 @@ public class Task {
 		this.description = description;
 	}
 
-	public String getTests() {
-		return tests;
+	public Set<TaskTestInput> getTaskTestInput() {
+		return taskTestInput;
 	}
 
-	public void setTests(String tests) {
-		this.tests = tests;
+	public void setTaskTestInput(Set<TaskTestInput> taskTestInput) {
+		this.taskTestInput = taskTestInput;
 	}
 
 	public boolean isDeleted() {
@@ -108,5 +118,11 @@ public class Task {
 	public void setDeleted(boolean deleted) {
 		this.deleted = deleted;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "Task [id=" + id + ", name=" + name + ", topic=" + topic + ", taskDifficulty=" + taskDifficulty
+				+ ", description=" + description + ", taskTestInput=" + taskTestInput + ", deleted=" + deleted + "]";
+	}
+
 }

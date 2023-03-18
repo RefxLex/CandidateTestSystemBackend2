@@ -5,6 +5,17 @@ import java.util.Optional;
 
 public enum TaskDifficulty {
 	
+	junior_beginner,
+    junior_intermediate,
+    junior_advanced,
+    middle_beginner,
+    middle_intermediate,
+    middle_advanced,
+    senior_beginner,
+    senior_intermediate,
+    senior_advanced;
+	
+	/*
 	JC("junior_beginner"),
     JB("junior_intermediate"),
     JA("junior_advanced"),
@@ -15,7 +26,7 @@ public enum TaskDifficulty {
     SB("senior_intermediate"),
     SA("senior_advanced");
                                  
-    private String fullName;
+    private final String fullName;
                                  
     TaskDifficulty(String fullName) {
         this.fullName = fullName;
@@ -23,13 +34,13 @@ public enum TaskDifficulty {
                                  
     public String getFullName() {
         return fullName;
-    }
+    } */
     
     public static Optional<TaskDifficulty> byNameIgnoreCase(String givenName) {
         return Arrays.stream(values()).filter(it -> it.name().equalsIgnoreCase(givenName)).findAny();
     }
-
+    /*
     public static Optional<TaskDifficulty> byFullNameIgnoreCase(String givenFullName) {
         return Arrays.stream(values()).filter(it -> it.fullName.equalsIgnoreCase(givenFullName)).findAny();
-    }
+    } */
 }

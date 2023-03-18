@@ -32,7 +32,7 @@ public class User {
 	
 	@NotBlank
 	@Size(max=120)
-	@Column(nullable=false, unique=true)
+	@Column(nullable=false)
 	private String password;
 	
 	@NotBlank
@@ -49,18 +49,18 @@ public class User {
 	private String info;
 	
 	@Column(name="user_status", nullable=false)
-	@Enumerated(EnumType.STRING)
-	private UserStatus userStatus;
+	private String userStatus;
 	
-	@Column(nullable=true)
+	@Column(nullable=true, columnDefinition="timestamptz")
 	private Date lastActivity;
 	
 	@Column(nullable=false)
 	private boolean deleted = false;
 	
+	/*
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_id")
-	private Set<UserTasks> userTasks = new HashSet<>();
+	private Set<UserTasks> userTasks = new HashSet<>(); */
 	
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "user_roles", 
@@ -72,7 +72,8 @@ public class User {
 		
 	}
 
-	public User(String userName, String email, String password, String fullName, String phone, String info, UserStatus userStatus) {
+	public User(@NotBlank String userName, @Email @NotBlank String email, @NotBlank String password, @NotBlank String fullName,
+			@NotBlank String phone, String info, String userStatus) {
 		
 		this.userName = userName;
 		this.email = email;
@@ -147,11 +148,11 @@ public class User {
 		this.info = info;
 	}
 
-	public UserStatus getUserStatus() {
+	public String getUserStatus() {
 		return userStatus;
 	}
 
-	public void setUserStatus(UserStatus userStatus) {
+	public void setUserStatus(String userStatus) {
 		this.userStatus = userStatus;
 	}
 	
@@ -171,19 +172,22 @@ public class User {
 		this.deleted = deleted;
 	}
 
+	@Override
+	public String toString() {
+		return "User [id=" + id + ", email=" + email + ", userName=" + userName + ", password=" + password
+				+ ", fullName=" + fullName + ", phone=" + phone + ", info=" + info + ", userStatus=" + userStatus
+				+ ", lastActivity=" + lastActivity + ", deleted=" + deleted + ", roles=" + roles + "]";
+	}
+	
+	/*
 	public Set<UserTasks> getUserTasks() {
 		return userTasks;
 	}
 
 	public void setUserTasks(Set<UserTasks> userTasks) {
 		this.userTasks = userTasks;
-	}
+	} */
 
-	@Override
-	public String toString() {
-		return "User [id=" + id + ", email=" + email + ", userName=" + userName + ", password=" + password
-				+ ", fullName=" + fullName + ", phone=" + phone + ", info=" + info + ", userStatus=" + userStatus
-				+ ", lastActivity=" + lastActivity + "]";
-	}
+	
 
 }

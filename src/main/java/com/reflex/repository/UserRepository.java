@@ -27,12 +27,17 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  
 	  Boolean existsByphone(String phone);
 	  
-	  //@Query("SELECT (id, email, user_name, first_name, second_name, last_name, info, phone, user_status) FROM user_profile WHERE user_status = status LIMIT rows")
-	  //List<User> selectUserByStatus(@Param("status") String status, @Param("rows") int rowsNumber);
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false",
+			  countQuery = "SELECT count(*) FROM user_profile",
+			  nativeQuery = true)
+	  Page<User> selectByUserStatusWithPagination(@Param("status") String status, Pageable pageable);
 	  
-	  Page<User> findByuserStatusContainingOrderByfirstNameDesc(String userStatus, Pageable pageable);
-		
-	  Page<User> findByuserStatusContainingOrderBylastActivityDesc(String userStatus, Pageable pageable);
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND deleted = false",
+			  countQuery = "SELECT count(*) FROM user_profile",
+			  nativeQuery = true)
+	  Page<User> selectByUserNameWithPagination(@Param("name") String name, Pageable pageable);
 	  
-	  Page<User> findByfullNameLikeOrderByfullNameDesc(String fullName,Pageable pageable);
+
 }
