@@ -1,5 +1,6 @@
 package com.reflex.repository;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,5 +17,11 @@ public interface UserTaskRepository extends JpaRepository<UserTask, Long> {
 			  value = "SELECT * FROM user_tasks WHERE user_id = :userId",
 			  nativeQuery = true)
 	  List<UserTask> selectByUserId(@Param("userId") Long userId);
-	
+	  
+	  @Query(
+			  value = "SELECT * FROM user_tasks WHERE assign_date >= :day AND assign_date < :next_day ",
+			  nativeQuery = true)
+	  List<UserTask> selectByLastAssingDate(@Param("day") Instant day, @Param("next_day") Instant nextDay);
+	  //List<UserTask> selectByLastAssingDate(@Param("day") String day, @Param("next_day") String nextDay);
+	  	
 }

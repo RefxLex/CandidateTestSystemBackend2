@@ -33,7 +33,7 @@ public class UserTask {
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	private Task task;
 	
-	@Column(name="assing_date", nullable=false, columnDefinition="timestamptz")
+	@Column(name="assign_date", nullable=false, columnDefinition="timestamptz")
 	private Instant assignDate;
 	
 	@Column(nullable=true, columnDefinition="TEXT")
@@ -51,6 +51,15 @@ public class UserTask {
 	@Column(name="language_id", nullable=false)
 	private int taskCodeLanguageId;
 	
+	@Column(name="tests_passed", nullable=false)
+	private Integer testsPassed;
+	
+	@Column(name="tests_failed", nullable=false)
+	private Integer testsFailed;
+	
+	@Column(name="overall_test_count", nullable=false)
+	private int overallTestsCount;
+	
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_task_id")
 	private Set<UserTaskResult> userTaskResult = new HashSet<>();
@@ -59,12 +68,15 @@ public class UserTask {
 		
 	}
 
-	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId) {
+	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId, int overallTestsCount) {
 		
 		this.user = user;
 		this.task = task;
 		this.assignDate = assignDate;
 		this.taskCodeLanguageId = taskCodeLanguageId;
+		this.overallTestsCount = overallTestsCount;
+		this.testsPassed = 0;
+		this.testsFailed = 0;
 
 	}
 
@@ -146,6 +158,30 @@ public class UserTask {
 
 	public void setUserTaskResult(Set<UserTaskResult> userTaskResult) {
 		this.userTaskResult = userTaskResult;
+	}
+	
+	public int getTestsPassed() {
+		return testsPassed;
+	}
+
+	public void setTestsPassed(int testsPassed) {
+		this.testsPassed = testsPassed;
+	}
+
+	public int getTestFailed() {
+		return testsFailed;
+	}
+
+	public void setTestFailed(int testFailed) {
+		this.testsFailed = testFailed;
+	}
+
+	public int getOverallTestsCount() {
+		return overallTestsCount;
+	}
+
+	public void setOverallTestsCount(int overallTestsCount) {
+		this.overallTestsCount = overallTestsCount;
 	}
 
 	@Override

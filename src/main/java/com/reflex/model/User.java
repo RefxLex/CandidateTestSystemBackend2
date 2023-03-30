@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.reflex.model.enums.UserStatus;
 
 import jakarta.persistence.*;
@@ -54,13 +55,11 @@ public class User {
 	@Column(nullable=true, columnDefinition="timestamptz")
 	private Date lastActivity;
 	
+	@Column(name="last_score", nullable=true)
+	private String lastScore;
+	
 	@Column(nullable=false)
 	private boolean deleted = false;
-	
-	/*
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-	@JoinColumn(name="user_id")
-	private Set<UserTasks> userTasks = new HashSet<>(); */
 	
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "user_roles", 
@@ -171,6 +170,22 @@ public class User {
 	public void setDeleted(boolean deleted) {
 		this.deleted = deleted;
 	}
+	/*
+	public Set<UserTaskGroup> getUserTaskGroup() {
+		return userTaskGroup;
+	}
+
+	public void setUserTaskGroup(Set<UserTaskGroup> userTaskGroup) {
+		this.userTaskGroup = userTaskGroup;
+	} */
+	
+	public String getLastScore() {
+		return lastScore;
+	}
+
+	public void setLastScore(String lastScore) {
+		this.lastScore = lastScore;
+	}
 
 	@Override
 	public String toString() {
@@ -179,15 +194,4 @@ public class User {
 				+ ", lastActivity=" + lastActivity + ", deleted=" + deleted + ", roles=" + roles + "]";
 	}
 	
-	/*
-	public Set<UserTasks> getUserTasks() {
-		return userTasks;
-	}
-
-	public void setUserTasks(Set<UserTasks> userTasks) {
-		this.userTasks = userTasks;
-	} */
-
-	
-
 }

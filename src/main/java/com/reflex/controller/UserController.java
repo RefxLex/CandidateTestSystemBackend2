@@ -44,9 +44,9 @@ import com.reflex.response.UserProfileResponse;
 import jakarta.validation.Valid;
 
 
-
+@CrossOrigin
 @RestController
-@CrossOrigin(origins = "*", maxAge = 3600)
+//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/user")
 public class UserController {
 	
@@ -71,26 +71,71 @@ public class UserController {
         	user.get().getFullName(),
         	user.get().getPhone(),
         	user.get().getInfo(),
-        	user.get().getUserStatus());
+        	user.get().getUserStatus(),
+        	user.get().getLastActivity(),
+        	user.get().getLastScore());
         
         return new ResponseEntity<>(userProfile, HttpStatus.OK);
     }
     
     @GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+    public ResponseEntity<List<User>> getUserByStatus(@RequestParam (required = false) String status){
+    	    	
+    	List<User> users = new ArrayList<>();
+    	if(status==null) {
+    		users = userRepository.selectAll();
+    	}else {
+    		switch (status) {
+			case "pending":
+				users = userRepository.selectByUserStatusStAndSub();
+				break;
+			default:
+				users = userRepository.selectByUserStatus(status);
+				break;
+			}
+    	}
+	    return new ResponseEntity<>(users, HttpStatus.OK);	
+    }
+    
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+    public ResponseEntity<List<User>> getUserByName(@RequestParam String name) {
+			
+	    List<User> users = new ArrayList<User>();
+	    users = userRepository.selectByUserName(name);
+	    return new ResponseEntity<>(users, HttpStatus.OK);
+	}
+    
+    // For server side pagination
+    /*
+    @GetMapping("/filter")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getUserByStatus(
-    		@RequestParam String status,
+    		@RequestParam (required = false) String status,
     		@RequestParam (defaultValue = "0") int page,
     		@RequestParam (defaultValue = "10") int size,
-    		@RequestParam (defaultValue = "name") String sort,
+    		@RequestParam (defaultValue = "full_name") String sort,
     		@RequestParam (defaultValue = "ASC") String direction){
     	    	
     	List<User> users = new ArrayList<User>();
     	Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sort));
     	Page<User> pageUsers;
     	
+    	if(status==null) {
+    		pageUsers = userRepository.selectAllWithPagination(paging);
+    	}else {
+    		switch (status) {
+			case "pending":
+				pageUsers = userRepository.selectByUserStatusStAndSubWithPagination(paging);
+				break;
+			default:
+				pageUsers = userRepository.selectByUserStatusWithPagination(status, paging);
+				break;
+			}
+    	}
+    		
     	try {
-    		pageUsers = userRepository.selectByUserStatusWithPagination(status, paging);
 	    	users = pageUsers.getContent();
 	        Map<String, Object> response = new HashMap<>();
 	        response.put("users", users);
@@ -111,7 +156,7 @@ public class UserController {
 		@RequestParam String name,
 		@RequestParam (defaultValue = "0") int page,
 		@RequestParam (defaultValue = "10") int size,
-		@RequestParam (defaultValue = "name") String sort,
+		@RequestParam (defaultValue = "full_name") String sort,
 		@RequestParam (defaultValue = "ASC") String direction) {
 			
 	    List<User> users = new ArrayList<User>();
@@ -132,7 +177,7 @@ public class UserController {
     		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
     	}
 	
-	}
+	} */
 
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")

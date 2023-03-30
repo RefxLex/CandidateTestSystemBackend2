@@ -40,8 +40,9 @@ import com.reflex.request.TaskRequest;
 
 import jakarta.validation.Valid;
 
+@CrossOrigin
 @RestController
-@CrossOrigin(origins = "*", maxAge = 3600)
+//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/task")
 public class TaskController {
 	
@@ -58,6 +59,45 @@ public class TaskController {
         return new ResponseEntity<>(task.get(), HttpStatus.OK);
 	}
 	
+	@GetMapping("/filter")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+	public ResponseEntity<List<Task>> getTaskByFilter(
+			@RequestParam (required=false) String name,
+			@RequestParam (required=false) Long topic,
+			@RequestParam (required=false) String level){
+		
+		List<Task> tasks = new ArrayList<Task>();
+
+		if( (name!=null) && (topic==null) && (level==null)) {
+			tasks = taskRepository.selectByName(name);
+		}
+		else if((name!=null) && (topic!=null) && (level==null)) {
+			tasks = taskRepository.selectByTopicAndName(name, topic);
+		}
+		else if((name==null) && (topic!=null) && (level!=null)) {
+			tasks = taskRepository.selectByTopicAndLevel(level, topic);
+		}
+		else if((name!=null) && (topic==null) && (level!=null)) {
+			tasks = taskRepository.selectByNameAndLevel(name, level);
+		}
+		else if((name!=null) && (topic!=null) && (level!=null)) {
+			tasks = taskRepository.selectByNameAndLevelAndTopic(name, topic, level);
+		}
+		else if((name==null) && (topic!=null) && (level==null)) {
+			tasks = taskRepository.selectByTopic(topic);
+		}
+		else if((name==null) && (topic==null) && (level!=null)) {
+			tasks = taskRepository.selectByLevel(level);
+		}
+		else {
+			tasks = taskRepository.selectAll();
+		}
+		
+	    return new ResponseEntity<>(tasks, HttpStatus.OK);
+	}
+	
+	// For server side pagination
+	/*
 	@GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<Map<String, Object>> getTaskByFilter(
@@ -112,7 +152,7 @@ public class TaskController {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		
-	}
+	} */
 	
 	@GetMapping("/difficulty")
 	@PreAuthorize("hasRole('ADMIN')")

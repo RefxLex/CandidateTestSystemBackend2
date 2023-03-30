@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,8 +34,9 @@ import com.reflex.request.UserTaskRequest;
 
 import jakarta.validation.Valid;
 
+@CrossOrigin
 @RestController
-@CrossOrigin(origins = "*", maxAge = 3600)
+//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/user-task")
 public class UserTaskController {
 	
@@ -55,6 +57,7 @@ public class UserTaskController {
 	}
 	
 	@PostMapping("/{userId}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<UserTask> createUserTask(
 			@PathVariable("userId") Long userId,
 			@RequestParam Long taskId,
@@ -67,12 +70,14 @@ public class UserTaskController {
 		if(user.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with userId=" + userId);
 		}
+		int overallTestsCount = task.get().getTaskTestInput().size();
 		Instant assignDate = Instant.now();
-		UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, languageId);
+		UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, languageId, overallTestsCount);
 		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.CREATED);
 	}
 	
 	@PutMapping("/start/{id}")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<UserTask> startTask(@PathVariable ("id") Long userTaskId){
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
@@ -84,6 +89,7 @@ public class UserTaskController {
 	}
 	
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<UserTask> updateUserTask(@PathVariable("id") Long userTaskId, @RequestBody UserTaskRequest userTaskRequest){
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
@@ -95,6 +101,7 @@ public class UserTaskController {
 	}
 	
 	@DeleteMapping("/{id}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<?> deleteUserTask(@PathVariable("id") Long userTaskId){
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
 		if(userTask.isPresent()==false) {

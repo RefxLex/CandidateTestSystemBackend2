@@ -28,16 +28,50 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  Boolean existsByphone(String phone);
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false",
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false AND user_status != 'none' ",
+			  nativeQuery = true)
+	  List<User> selectByUserStatus(@Param("status") String status);
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND deleted = false AND user_status != 'none' ",
+			  nativeQuery = true)
+	  List<User> selectByUserName(@Param("name") String name);
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE user_status != 'none' AND deleted = false",
+			  nativeQuery = true)
+	  List<User> selectAll();
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE ( (user_status = 'started') OR (user_status = 'submitted') ) AND deleted = false AND user_status != 'none' ",
+			  nativeQuery = true)
+	  List<User> selectByUserStatusStAndSub();
+	  
+	  
+	  // For server side pagination
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false AND user_status != 'none' ",
 			  countQuery = "SELECT count(*) FROM user_profile",
 			  nativeQuery = true)
 	  Page<User> selectByUserStatusWithPagination(@Param("status") String status, Pageable pageable);
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND deleted = false",
+			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND deleted = false AND user_status != 'none' ",
 			  countQuery = "SELECT count(*) FROM user_profile",
 			  nativeQuery = true)
 	  Page<User> selectByUserNameWithPagination(@Param("name") String name, Pageable pageable);
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE ( (user_status = 'started') OR (user_status = 'submitted') ) AND deleted = false AND user_status != 'none' ",
+			  countQuery = "SELECT count(*) FROM user_profile",
+			  nativeQuery = true)
+	  Page<User> selectByUserStatusStAndSubWithPagination(Pageable pageable);
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE user_status != 'none' AND deleted = false",
+			  countQuery = "SELECT count(*) FROM user_profile",
+			  nativeQuery = true)
+	  Page<User> selectAllWithPagination(Pageable pageable);
 	  
 
 }

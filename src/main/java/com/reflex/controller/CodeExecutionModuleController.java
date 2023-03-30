@@ -2,10 +2,14 @@ package com.reflex.controller;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,8 +46,10 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.TaskTestInput;
+import com.reflex.model.User;
 import com.reflex.model.UserTask;
 import com.reflex.model.UserTaskResult;
+import com.reflex.repository.UserRepository;
 import com.reflex.repository.UserTaskRepository;
 import com.reflex.repository.UserTaskResultRepository;
 import com.reflex.request.SubmissionRequest;
@@ -54,8 +61,9 @@ import com.reflex.response.SubmissionTokenResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
+@CrossOrigin
 @RestController
-@CrossOrigin(origins = "*", maxAge = 3600)
+//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/exec-module")
 public class CodeExecutionModuleController {
 	
@@ -70,7 +78,11 @@ public class CodeExecutionModuleController {
 	@Autowired
 	UserTaskResultRepository userTaskResultRepository;
 	
+	@Autowired
+	UserRepository userRepository;
+	
 	@GetMapping("/languages")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<List<LanguageResponse>> getSupportedLanguages(){
 			
 		RequestConfig requestConfig = RequestConfig.custom().
@@ -104,7 +116,18 @@ public class CodeExecutionModuleController {
         	}
         return new ResponseEntity<>(filteredList, HttpStatus.OK);
 	}
+	
+	@GetMapping("/submission/{id}")
+	public ResponseEntity<UserTask> getSubmission(@PathVariable("id") Long userTaskId){
+		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
+		if(userTask.isPresent()==false) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user_task found with id=" + userTaskId);
+		}
+		return new ResponseEntity<>(userTask.get(), HttpStatus.OK);
+	}
+	
 	@PutMapping("/submission/{id}")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<?> createSubmission(@PathVariable ("id") Long userTaskId,
 			@RequestBody UserTaskRequest userTaskRequest) throws IOException{
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
@@ -158,22 +181,21 @@ public class CodeExecutionModuleController {
 	
 	@PutMapping("/submission/result/{id}")
 	@Transactional
-	public ResponseEntity<UserTask> getSubmissionResult(@PathVariable("id") Long userTaskId) throws IOException{
+	public ResponseEntity<UserTask> updateSubmissionResult(@PathVariable("id") Long userTaskId) throws IOException{
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user_task found with id=" + userTaskId);
 		}
-		
-		List<UserTaskResult> userTaskResultList = userTaskResultRepository.selectByUserTaskId(userTaskId);
+		UserTask newUserTask = oldUserTask.get();
 		
 		RequestConfig requestConfig = RequestConfig.custom().
 			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
 		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
 		ObjectMapper mapper = new ObjectMapper();
 		
-		for(int i=0; i<userTaskResultList.size(); i++) {
+		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
 			
-			HttpGet request = new HttpGet(baseUrl + "/submissions/" + userTaskResultList.get(i).getSubmissionToken());
+			HttpGet request = new HttpGet(baseUrl + "/submissions/" + iterator.getSubmissionToken());
 	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
 	             CloseableHttpResponse response = httpClient.execute(request)) {
 
@@ -181,24 +203,61 @@ public class CodeExecutionModuleController {
 	            if (entity != null) {
 	            	String result = EntityUtils.toString(entity);
 	            	SubmissionResultResponse resultResponse = mapper.readValue(result, SubmissionResultResponse.class);
-	            	userTaskResultList.get(i).setStdout(resultResponse.getStdout());
-	            	userTaskResultList.get(i).setStderr(resultResponse.getStderr());
-	            	userTaskResultList.get(i).setCompile_output(resultResponse.getCompile_output());
-	            	userTaskResultList.get(i).setMessage(resultResponse.getMessage());
-	            	userTaskResultList.get(i).setExit_code(resultResponse.getExit_code());
-	            	userTaskResultList.get(i).setExit_signal(resultResponse.getExit_signal());
-	            	userTaskResultList.get(i).setStatus(resultResponse.getStatus().getDescription());
-	            	userTaskResultList.get(i).setCreated_at(resultResponse.getCreated_at());
-	            	userTaskResultList.get(i).setFinished_at(resultResponse.getFinished_at());
-	            	userTaskResultList.get(i).setTime(resultResponse.getTime());
-	            	userTaskResultList.get(i).setWall_time(resultResponse.getWall_time());
-	            	userTaskResultList.get(i).setMemory(resultResponse.getMemory());
+	            	iterator.setStdout(resultResponse.getStdout());
+	            	iterator.setStderr(resultResponse.getStderr());
+	            	iterator.setCompile_output(resultResponse.getCompile_output());
+	            	iterator.setMessage(resultResponse.getMessage());
+	            	iterator.setExit_code(resultResponse.getExit_code());
+	            	iterator.setExit_signal(resultResponse.getExit_signal());
+	            	iterator.setStatus(resultResponse.getStatus().getDescription());
+	            	iterator.setCreated_at(resultResponse.getCreated_at());
+	            	iterator.setFinished_at(resultResponse.getFinished_at());
+	            	iterator.setTime(resultResponse.getTime());
+	            	iterator.setWall_time(resultResponse.getWall_time());
+	            	iterator.setMemory(resultResponse.getMemory());
 	            }    
 	        }	
 	    }
-		userTaskResultRepository.saveAll(userTaskResultList);
-		Optional<UserTask> newUserTask = userTaskRepository.findById(userTaskId);
-		return new ResponseEntity<>(newUserTask.get(), HttpStatus.OK);		
+		
+		// check if tests are passed
+		int testsPassed=0;
+		int testsFailed=0;
+		String stdout;
+		String expectedOutput;
+		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
+			stdout = iterator.getStdout();
+			expectedOutput = iterator.getTaskTestInput().getOutput();
+			if(expectedOutput.equals(stdout)) {
+				testsPassed = testsPassed + 1;
+			}
+			else {
+				testsFailed = testsFailed + 1;
+			}	
+		}
+		newUserTask.setTestsPassed(testsPassed);
+		newUserTask.setTestFailed(testsFailed);
+		
+	// calculate user score
+		User user = newUserTask.getUser();
+		Instant lastTaskAssingDate = newUserTask.getAssignDate();
+		Instant nextDay = lastTaskAssingDate.plusSeconds(24*60*60);
+		
+		// include tests from current task first
+		int allTestsSum=newUserTask.getOverallTestsCount();
+		int allPassedTestsSum=testsPassed;
+		
+		// then check for tasks assigned in same day as current task
+		List<UserTask> userTaskList = userTaskRepository.selectByLastAssingDate(lastTaskAssingDate, nextDay);
+		if(userTaskList.isEmpty()==false) {
+			for(UserTask iterator: userTaskList) {
+				allTestsSum = allTestsSum + iterator.getOverallTestsCount();
+				allPassedTestsSum = allPassedTestsSum + iterator.getTestsPassed();
+			}
+		}
+		String userScore = ((Integer) Math.round((allPassedTestsSum / allTestsSum)*100)).toString();
+		user.setLastScore(userScore + "%");
+		userRepository.save(user);
+		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 	}
 	
 		
