@@ -42,7 +42,6 @@ import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/task")
 public class TaskController {
 	

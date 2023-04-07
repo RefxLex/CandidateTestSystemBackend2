@@ -7,7 +7,7 @@ public enum UserStatus {
 	
 	invited,  		// user registered in the system by moderator from job website
 	started,		// a task was assigned to user by moderator
-	submitted, 		// user submitted answer
+	submitted, 		// user submitted answers to ALL assigned tasks
 	approved,		// moderator invited user to job interview	 (user successfully completed task)
 	rejected, 		// moderator was unsatisfied with user score (user failed task)
 	none;			// for admins, and moderators

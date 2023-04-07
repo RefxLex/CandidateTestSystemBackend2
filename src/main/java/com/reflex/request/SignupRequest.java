@@ -27,7 +27,7 @@ public class SignupRequest {
 	private String phone;
 	
 	private String info;
-  
+	
 	/*
     public String getUsername() {
         return username;
@@ -76,5 +76,5 @@ public class SignupRequest {
 	public void setInfo(String info) {
 		this.info = info;
 	}
-    
+
 }

@@ -55,7 +55,7 @@ public class UserTaskResult {
 	
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name="input_id")
-	@JsonIgnore
+	//@JsonIgnore
 	private TaskTestInput taskTestInput;
 	
 	public UserTaskResult() {

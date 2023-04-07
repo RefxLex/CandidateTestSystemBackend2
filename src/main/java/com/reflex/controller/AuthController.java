@@ -36,8 +36,6 @@ import com.reflex.security.jwt.JwtUtils;
 
 import jakarta.validation.Valid;
 
-//@CrossOrigin(origins = "*", maxAge = 3600)
-//@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600, allowCredentials = "true")
 @CrossOrigin
 @RestController
 @RequestMapping("/api/auth")

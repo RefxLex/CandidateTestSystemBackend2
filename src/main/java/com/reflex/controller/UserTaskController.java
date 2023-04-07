@@ -27,16 +27,18 @@ import org.springframework.web.server.ResponseStatusException;
 import com.reflex.model.Task;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
+import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.UserRepository;
 import com.reflex.repository.UserTaskRepository;
+import com.reflex.request.CreateUserTaskRequest;
+import com.reflex.request.UpdateCommentRequest;
 import com.reflex.request.UserTaskRequest;
 
 import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/user-task")
 public class UserTaskController {
 	
@@ -49,7 +51,16 @@ public class UserTaskController {
 	@Autowired
 	UserRepository userRepository;
 	
-	@GetMapping("/{userId}")
+	@GetMapping("/{id}")
+	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){
+		Optional <UserTask> userTask = userTaskRepository.findById(userTaskId);
+		if(userTask.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user task found with id=" + userTaskId);
+		}
+		return new ResponseEntity<>(userTask.get(), HttpStatus.OK);
+	}
+	
+	@GetMapping("/find/{userId}")
 	public ResponseEntity<List<UserTask>> getUserTasksByUserId(@PathVariable ("userId") Long userId){
 		List<UserTask> userTasksList = new ArrayList<>();
 		userTasksList = userTaskRepository.selectByUserId(userId);
@@ -58,21 +69,21 @@ public class UserTaskController {
 	
 	@PostMapping("/{userId}")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	public ResponseEntity<UserTask> createUserTask(
-			@PathVariable("userId") Long userId,
-			@RequestParam Long taskId,
-			@RequestParam int languageId){
-		Optional<Task> task = taskRepository.findById(taskId);
+	public ResponseEntity<UserTask> createUserTask(@PathVariable("userId") Long userId, 
+			@Valid @RequestBody CreateUserTaskRequest userTaskRequest){
+		Optional<Task> task = taskRepository.findById(userTaskRequest.getTaskId());
 		if(task.isPresent()==false) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with taskId=" + taskId);
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with taskId=" + userTaskRequest.getTaskId());
 		}
 		Optional<User> user = userRepository.findById(userId);
 		if(user.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with userId=" + userId);
 		}
+		user.get().setUserStatus((UserStatus.started).toString());
 		int overallTestsCount = task.get().getTaskTestInput().size();
 		Instant assignDate = Instant.now();
-		UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, languageId, overallTestsCount);
+		UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, userTaskRequest.getLanguageId(),
+				userTaskRequest.getLanguageName(),overallTestsCount);
 		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.CREATED);
 	}
 	
@@ -90,13 +101,14 @@ public class UserTaskController {
 	
 	@PutMapping("/{id}")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	public ResponseEntity<UserTask> updateUserTask(@PathVariable("id") Long userTaskId, @RequestBody UserTaskRequest userTaskRequest){
+	public ResponseEntity<UserTask> updateUserTask(@PathVariable("id") Long userTaskId,
+			@Valid @RequestBody UpdateCommentRequest updateCommentRequest){
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No userTask found with id=" + userTaskId);
 		}
 		UserTask newUserTask = oldUserTask.get();
-		newUserTask.setComment(userTaskRequest.getComment());
+		newUserTask.setComment(updateCommentRequest.getComment());
 		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 	}
 	

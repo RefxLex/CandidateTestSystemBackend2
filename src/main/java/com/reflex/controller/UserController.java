@@ -32,11 +32,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.reflex.model.Role;
 import com.reflex.model.User;
+import com.reflex.model.UserTask;
 import com.reflex.model.enums.ERole;
 import com.reflex.model.enums.TaskDifficulty;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.RoleRepository;
 import com.reflex.repository.UserRepository;
+import com.reflex.repository.UserTaskRepository;
 import com.reflex.request.SignupRequest;
 import com.reflex.response.MessageResponse;
 import com.reflex.response.UserProfileResponse;
@@ -46,7 +48,6 @@ import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/user")
 public class UserController {
 	
@@ -55,6 +56,9 @@ public class UserController {
 	
 	@Autowired
 	RoleRepository roleRepository;
+	
+	@Autowired
+	UserTaskRepository userTaskRepository;
 	
 	@Autowired
 	PasswordEncoder encoder;
@@ -78,34 +82,44 @@ public class UserController {
         return new ResponseEntity<>(userProfile, HttpStatus.OK);
     }
     
+    @GetMapping("/by-user-task/{userTaskId}")
+    public ResponseEntity<UserProfileResponse> getUserByUserTaskId(@PathVariable("userTaskId") Long userTaskId) {
+    	Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
+    	if (userTask.isEmpty()) {
+    		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Entity not found");
+    	}
+    	User user = userTask.get().getUser();
+        UserProfileResponse userProfile = new UserProfileResponse(
+        	user.getId(),
+        	user.getEmail(),
+        	user.getUserName(),
+        	user.getFullName(),
+        	user.getPhone(),
+        	user.getInfo(),
+        	user.getUserStatus(),
+        	user.getLastActivity(),
+        	user.getLastScore());
+        return new ResponseEntity<>(userProfile, HttpStatus.OK);
+    }
+    
     @GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<List<User>> getUserByStatus(@RequestParam (required = false) String status){
+    public ResponseEntity<List<User>> getUserByStatus(
+    		@RequestParam (required = false) String status,
+    		@RequestParam (required = false) String full_name){
     	    	
     	List<User> users = new ArrayList<>();
-    	if(status==null) {
+    	if( (status!=null) && (full_name!=null) ) {
+    		users = userRepository.selectByUserStatusAndUserName(full_name, status);
+    	}else if ( (status==null) && (full_name==null) ) {
     		users = userRepository.selectAll();
-    	}else {
-    		switch (status) {
-			case "pending":
-				users = userRepository.selectByUserStatusStAndSub();
-				break;
-			default:
-				users = userRepository.selectByUserStatus(status);
-				break;
-			}
+    	}else if ( (status!=null) && (full_name==null) ) {
+    		users = userRepository.selectByUserStatus(status);
+    	}else if ( (status==null) && (full_name!=null) ) {
+    		users = userRepository.selectByUserName(full_name);
     	}
 	    return new ResponseEntity<>(users, HttpStatus.OK);	
     }
-    
-    @GetMapping("/search")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<List<User>> getUserByName(@RequestParam String name) {
-			
-	    List<User> users = new ArrayList<User>();
-	    users = userRepository.selectByUserName(name);
-	    return new ResponseEntity<>(users, HttpStatus.OK);
-	}
     
     // For server side pagination
     /*
@@ -213,10 +227,26 @@ public class UserController {
 
 	    return ResponseEntity.ok(new MessageResponse("User created successfully!"));
 	  }
-	  
+	
+	  @PutMapping("/status/{id}")
+	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")	
+	  public ResponseEntity<?> updateUserStatus(@PathVariable("id") Long id, @RequestParam String status){
+		  Optional<User> oldUser = userRepository.findById(id);
+		  if(oldUser.isEmpty()) {
+			  throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with id= " + id);
+		  }
+		  if(UserStatus.byNameIgnoreCase(status).isEmpty()) {
+			  throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user status");
+		  }
+		  User newUser = oldUser.get();
+		  newUser.setUserStatus(status);
+		  userRepository.save(newUser);
+		  return new ResponseEntity<>(HttpStatus.OK);
+	  }
+	
 	  @PutMapping("/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	    public ResponseEntity<User> updateUser(@PathVariable("id") Long id, @Valid @RequestBody SignupRequest signUpRequest) {
+	  public ResponseEntity<User> updateUserProfile(@PathVariable("id") Long id, @Valid @RequestBody SignupRequest signUpRequest) {
 	        Optional<User> oldUser = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
 	                new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User")));
 	        if (oldUser.isPresent()) {
@@ -225,7 +255,7 @@ public class UserController {
 	            newUser.setFullName(signUpRequest.getFullName());
 	            newUser.setPhone(signUpRequest.getPhone());
 	            newUser.setInfo(signUpRequest.getInfo());
-
+	            
 	            return new ResponseEntity<>(userRepository.save(newUser), HttpStatus.OK);
 	        } else {
 	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");

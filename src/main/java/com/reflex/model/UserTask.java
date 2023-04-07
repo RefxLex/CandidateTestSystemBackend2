@@ -45,11 +45,24 @@ public class UserTask {
 	@Column(name="submit_date", nullable=true, columnDefinition="timestamptz")
 	private Instant submitDate;
 	
+	@Column(name="time_spent", nullable=true)
+	private String timeSpent;
+	
+	/*
+	@Column(name="start_date", nullable=true, columnDefinition="text")
+	private String startDate;
+	
+	@Column(name="submit_date", nullable=true, columnDefinition="text")
+	private String submitDate; */
+	
 	@Column(nullable=true, columnDefinition="TEXT")
 	private String comment;
 	
 	@Column(name="language_id", nullable=false)
 	private int taskCodeLanguageId;
+	
+	@Column(name="language_name", nullable=false)
+	private String languageName;
 	
 	@Column(name="tests_passed", nullable=false)
 	private Integer testsPassed;
@@ -68,12 +81,13 @@ public class UserTask {
 		
 	}
 
-	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId, int overallTestsCount) {
+	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId, String languageName, int overallTestsCount) {
 		
 		this.user = user;
 		this.task = task;
 		this.assignDate = assignDate;
 		this.taskCodeLanguageId = taskCodeLanguageId;
+		this.languageName = languageName;
 		this.overallTestsCount = overallTestsCount;
 		this.testsPassed = 0;
 		this.testsFailed = 0;
@@ -160,28 +174,60 @@ public class UserTask {
 		this.userTaskResult = userTaskResult;
 	}
 	
-	public int getTestsPassed() {
-		return testsPassed;
-	}
-
-	public void setTestsPassed(int testsPassed) {
-		this.testsPassed = testsPassed;
-	}
-
-	public int getTestFailed() {
-		return testsFailed;
-	}
-
-	public void setTestFailed(int testFailed) {
-		this.testsFailed = testFailed;
-	}
-
 	public int getOverallTestsCount() {
 		return overallTestsCount;
 	}
 
 	public void setOverallTestsCount(int overallTestsCount) {
 		this.overallTestsCount = overallTestsCount;
+	}
+	
+	public String getLanguageName() {
+		return languageName;
+	}
+
+	public void setLanguageName(String languageName) {
+		this.languageName = languageName;
+	}
+
+	public Integer getTestsFailed() {
+		return testsFailed;
+	}
+
+	public void setTestsFailed(Integer testsFailed) {
+		this.testsFailed = testsFailed;
+	}
+
+	public void setTestsPassed(Integer testsPassed) {
+		this.testsPassed = testsPassed;
+	}
+	
+	public Integer getTestsPassed() {
+		return testsPassed;
+	}
+	
+	/*
+	public String getStartDate() {
+		return startDate;
+	}
+
+	public void setStartDate(String startDate) {
+		this.startDate = startDate;
+	}
+
+	public String getSubmitDate() {
+		return submitDate;
+	}
+
+	public void setSubmitDate(String submitDate) {
+		this.submitDate = submitDate; */
+	
+	public String getTimeSpent() {
+		return timeSpent;
+	}
+
+	public void setTimeSpent(String timeSpent) {
+		this.timeSpent = timeSpent;
 	}
 
 	@Override

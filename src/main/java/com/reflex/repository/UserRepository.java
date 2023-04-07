@@ -43,12 +43,13 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  List<User> selectAll();
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE ( (user_status = 'started') OR (user_status = 'submitted') ) AND deleted = false AND user_status != 'none' ",
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND full_name LIKE :name% AND deleted = false AND user_status != 'none' ",
 			  nativeQuery = true)
-	  List<User> selectByUserStatusStAndSub();
+	  List<User> selectByUserStatusAndUserName(@Param("name") String name, @Param("status") String status);
 	  
 	  
 	  // For server side pagination
+	  /*
 	  @Query(
 			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false AND user_status != 'none' ",
 			  countQuery = "SELECT count(*) FROM user_profile",
@@ -71,7 +72,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
 			  value = "SELECT * FROM user_profile WHERE user_status != 'none' AND deleted = false",
 			  countQuery = "SELECT count(*) FROM user_profile",
 			  nativeQuery = true)
-	  Page<User> selectAllWithPagination(Pageable pageable);
+	  Page<User> selectAllWithPagination(Pageable pageable); */
 	  
 
 }

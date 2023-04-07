@@ -49,6 +49,7 @@ import com.reflex.model.TaskTestInput;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
 import com.reflex.model.UserTaskResult;
+import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.UserRepository;
 import com.reflex.repository.UserTaskRepository;
 import com.reflex.repository.UserTaskResultRepository;
@@ -63,7 +64,6 @@ import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-//@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/exec-module")
 public class CodeExecutionModuleController {
 	
@@ -129,7 +129,7 @@ public class CodeExecutionModuleController {
 	@PutMapping("/submission/{id}")
 	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<?> createSubmission(@PathVariable ("id") Long userTaskId,
-			@RequestBody UserTaskRequest userTaskRequest) throws IOException{
+		@Valid @RequestBody UserTaskRequest userTaskRequest) throws IOException{
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user_task found with id=" + userTaskId);
@@ -137,6 +137,49 @@ public class CodeExecutionModuleController {
 		UserTask newUserTask = oldUserTask.get();
 		newUserTask.setCode(userTaskRequest.getCode());
 		newUserTask.setSubmitDate(Instant.now());
+		
+		String timeSpent="";
+		double minutesSpent = 0;
+		double hoursSpent = 0;
+		double daysSpent = 0;
+		double secondsSpent = (double) (newUserTask.getSubmitDate().getEpochSecond() - newUserTask.getStartDate().getEpochSecond());
+		if (secondsSpent > 60) {
+			minutesSpent = Math.floor(secondsSpent/60);
+		}
+		if (minutesSpent > 60) {
+			hoursSpent = Math.floor(minutesSpent/60);
+		}
+		if (hoursSpent > 24) {
+			daysSpent = Math.floor(hoursSpent/24);
+		}
+		
+		if (daysSpent > 0) {
+			timeSpent = timeSpent + ((Long)Math.round(daysSpent)).toString() + "d ";
+			if (hoursSpent > 0) {
+				timeSpent = timeSpent + ((Long)Math.round(hoursSpent - daysSpent*24)).toString() + "h ";
+				if (minutesSpent > 0) {
+					timeSpent = timeSpent + ((Long)Math.round(minutesSpent - hoursSpent*60)).toString() + "m ";
+					if (secondsSpent > 0) {
+						timeSpent = timeSpent + ((Long)Math.round(secondsSpent - minutesSpent*60)).toString() + "s";
+					}
+				}
+			}
+		}
+		newUserTask.setTimeSpent(timeSpent);
+		newUserTask.getUser().setLastActivity(Date.from(Instant.now()));
+		
+
+		// check if user done all tasks
+		boolean tasksDone=true;
+		List<UserTask> userTaskList = userTaskRepository.selectByUserId(newUserTask.getUser().getId());
+		for (UserTask iterator: userTaskList) {
+			if(iterator.getSubmitDate()==null) {
+				tasksDone = false;
+			}
+		}
+		if (tasksDone) {
+			newUserTask.getUser().setUserStatus((UserStatus.submitted).toString());
+		}
 
 		// get input values list for exec module as array
 		Set<TaskTestInput> taskTestInputSet = new HashSet<>();
@@ -220,8 +263,8 @@ public class CodeExecutionModuleController {
 	    }
 		
 		// check if tests are passed
-		int testsPassed=0;
-		int testsFailed=0;
+		Integer testsPassed=0;
+		Integer testsFailed=0;
 		String stdout;
 		String expectedOutput;
 		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
@@ -235,7 +278,7 @@ public class CodeExecutionModuleController {
 			}	
 		}
 		newUserTask.setTestsPassed(testsPassed);
-		newUserTask.setTestFailed(testsFailed);
+		newUserTask.setTestsFailed(testsFailed);
 		
 	// calculate user score
 		User user = newUserTask.getUser();
