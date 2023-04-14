@@ -2,8 +2,11 @@ package com.reflex.controller;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,6 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.Task;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
@@ -34,7 +40,9 @@ import com.reflex.repository.UserTaskRepository;
 import com.reflex.request.CreateUserTaskRequest;
 import com.reflex.request.UpdateCommentRequest;
 import com.reflex.request.UserTaskRequest;
+import com.reflex.response.LanguageResponse;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @CrossOrigin
@@ -69,22 +77,30 @@ public class UserTaskController {
 	
 	@PostMapping("/{userId}")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	public ResponseEntity<UserTask> createUserTask(@PathVariable("userId") Long userId, 
-			@Valid @RequestBody CreateUserTaskRequest userTaskRequest){
-		Optional<Task> task = taskRepository.findById(userTaskRequest.getTaskId());
-		if(task.isPresent()==false) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with taskId=" + userTaskRequest.getTaskId());
+	@Transactional
+	public ResponseEntity<?> createUserTask(@PathVariable("userId") Long userId, 
+			 @Valid @RequestBody List<CreateUserTaskRequest> userTaskRequestList) {
+		
+		List<UserTask> userTaskList = new ArrayList<>();
+		for(CreateUserTaskRequest userTaskRequest: userTaskRequestList) {
+			
+			Optional<Task> task = taskRepository.findById(userTaskRequest.getTaskId());
+			if(task.isPresent()==false) {
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with taskId=" + userTaskRequest.getTaskId());
+			}
+			Optional<User> user = userRepository.findById(userId);
+			if(user.isPresent()==false) {
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with userId=" + userId);
+			}
+			user.get().setUserStatus((UserStatus.started).toString());
+			int overallTestsCount = task.get().getTaskTestInput().size();
+			Instant assignDate = Instant.now();
+			UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, userTaskRequest.getLanguageId(),
+					userTaskRequest.getLanguageName(),overallTestsCount);
+			userTaskList.add(newUserTask);
 		}
-		Optional<User> user = userRepository.findById(userId);
-		if(user.isPresent()==false) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with userId=" + userId);
-		}
-		user.get().setUserStatus((UserStatus.started).toString());
-		int overallTestsCount = task.get().getTaskTestInput().size();
-		Instant assignDate = Instant.now();
-		UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, userTaskRequest.getLanguageId(),
-				userTaskRequest.getLanguageName(),overallTestsCount);
-		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.CREATED);
+		userTaskRepository.saveAll(userTaskList);
+		return new ResponseEntity<>(null, HttpStatus.CREATED);
 	}
 	
 	@PutMapping("/start/{id}")

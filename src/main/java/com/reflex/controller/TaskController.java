@@ -29,11 +29,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.reflex.model.Task;
+import com.reflex.model.TaskDifficulty;
 import com.reflex.model.TaskTestInput;
 import com.reflex.model.Topic;
 import com.reflex.model.User;
-import com.reflex.model.enums.TaskDifficulty;
 import com.reflex.model.enums.UserStatus;
+import com.reflex.repository.TaskDifficultyRepository;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.TopicRepository;
 import com.reflex.request.TaskRequest;
@@ -51,6 +52,9 @@ public class TaskController {
 	@Autowired 
 	TopicRepository topicRepository;
 	
+	@Autowired
+	TaskDifficultyRepository taskDifficultyRepository;
+	
 	@GetMapping("/{id}")
 	public ResponseEntity<Task> getTaskById(@PathVariable ("id") Long id){
         Optional<Task> task = Optional.ofNullable(taskRepository.findById(id).orElseThrow(() ->
@@ -58,6 +62,45 @@ public class TaskController {
         return new ResponseEntity<>(task.get(), HttpStatus.OK);
 	}
 	
+	
+	@GetMapping("/filter")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+	public ResponseEntity<List<Task>> getTaskByFilter(
+			@RequestParam String name,
+			@RequestParam String topic_id,
+			@RequestParam String level_id) throws NumberFormatException {
+		
+		List<Task> tasks = new ArrayList<Task>();
+
+		if( (name!="") && (topic_id=="") && (level_id=="")) {
+			tasks = taskRepository.selectByName(name);
+		}
+		else if((name!="") && (topic_id!="") && (level_id=="")) {
+			tasks = taskRepository.selectByTopicAndName(name, Long.parseLong(topic_id));
+		}
+		else if((name=="") && (topic_id!="") && (level_id!="")) {
+			tasks = taskRepository.selectByTopicAndLevel(Long.parseLong(level_id), Long.parseLong(topic_id));
+		}
+		else if((name!="") && (topic_id=="") && (level_id!="")) {
+			tasks = taskRepository.selectByNameAndLevel(name, Long.parseLong(level_id));
+		}
+		else if((name!="") && (topic_id!="") && (level_id!="")) {
+			tasks = taskRepository.selectByNameAndLevelAndTopic(name, Long.parseLong(topic_id), Long.parseLong(level_id));
+		}
+		else if((name=="") && (topic_id!="") && (level_id=="")) {
+			tasks = taskRepository.selectByTopic(Long.parseLong(topic_id));
+		}
+		else if((name=="") && (topic_id=="") && (level_id!="")) {
+			tasks = taskRepository.selectByLevel(Long.parseLong(level_id));
+		}
+		else {
+			tasks = taskRepository.selectAll();
+		}
+		
+	    return new ResponseEntity<>(tasks, HttpStatus.OK);
+	}
+	
+	/*
 	@GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<List<Task>> getTaskByFilter(
@@ -93,7 +136,7 @@ public class TaskController {
 		}
 		
 	    return new ResponseEntity<>(tasks, HttpStatus.OK);
-	}
+	} */
 	
 	// For server side pagination
 	/*
@@ -156,7 +199,7 @@ public class TaskController {
 	@GetMapping("/difficulty")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<List<TaskDifficulty>> getAllDifficultyLevels(){
-		List<TaskDifficulty> difficulties = Arrays.asList(TaskDifficulty.values());
+		List<TaskDifficulty> difficulties = taskDifficultyRepository.findAll();
 	    return new ResponseEntity<>(difficulties, HttpStatus.OK);
 	}
 	
@@ -170,12 +213,12 @@ public class TaskController {
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(taskRequest.getTopicId()).orElseThrow(() ->
         	new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + taskRequest.getTopicId() )));
 
-        Optional<TaskDifficulty> difficulty = TaskDifficulty.byNameIgnoreCase(taskRequest.getTaskDifficulty());
+        Optional<TaskDifficulty> difficulty = taskDifficultyRepository.findByname(taskRequest.getName());
         if(difficulty.isPresent()) {
             Task task = new Task(
             		taskRequest.getName(),
             		topic.get(),
-            		difficulty.get().name(),
+            		difficulty.get(),
             		taskRequest.getDescription(),
             		taskRequest.getTaskTestInput());
             return new ResponseEntity<>(taskRepository.save(task), HttpStatus.CREATED);
@@ -198,13 +241,13 @@ public class TaskController {
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(taskRequest.getTopicId()).orElseThrow(() ->
     	new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + taskRequest.getTopicId() )));
 
-	    Optional<TaskDifficulty> difficulty = TaskDifficulty.byNameIgnoreCase(taskRequest.getTaskDifficulty());
+        Optional<TaskDifficulty> difficulty = taskDifficultyRepository.findByname(taskRequest.getName());
 	    if(difficulty.isPresent()) {
 	    	
 	        Task newTask = oldTask.get();
 	        newTask.setName(taskRequest.getName());
 	        newTask.setTopic(topic.get());
-	        newTask.setTaskDifficulty(difficulty.get().name());
+	        newTask.setTaskDifficulty(difficulty.get());
 	        newTask.setDescription(taskRequest.getDescription());
 	        newTask.setTaskTestInput(taskRequest.getTaskTestInput());
 	  

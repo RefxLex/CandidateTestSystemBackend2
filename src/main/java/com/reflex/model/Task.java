@@ -8,7 +8,6 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.reflex.model.enums.TaskDifficulty;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -33,10 +32,17 @@ public class Task {
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	public Topic topic;
 	
+	@ManyToOne(fetch=FetchType.LAZY, optional=false)
+	@JoinColumn(name="difficulty_id", nullable=false)
+	@OnDelete(action=OnDeleteAction.CASCADE)
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+	public TaskDifficulty taskDifficulty;
+	
+	/*
 	@NotBlank
 	@Size(max=50)
 	@Column(name="task_difficulty", nullable=false)
-	private String taskDifficulty;
+	private String taskDifficulty; */
 	
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String description;
@@ -53,7 +59,7 @@ public class Task {
 		
 	}
 	
-	public Task(@NotBlank String name, Topic topic, @NotBlank String taskDifficulty, String description, 
+	public Task(@NotBlank String name, Topic topic, TaskDifficulty taskDifficulty, String description, 
 			Set<TaskTestInput> taskTestInput){
 
 		this.name = name;
@@ -87,14 +93,6 @@ public class Task {
 		this.topic = topic;
 	}
 
-	public String getTaskDifficulty() {
-		return taskDifficulty;
-	}
-
-	public void setTaskDifficulty(String taskDifficulty) {
-		this.taskDifficulty = taskDifficulty;
-	}
-
 	public String getDescription() {
 		return description;
 	}
@@ -117,6 +115,14 @@ public class Task {
 
 	public void setDeleted(boolean deleted) {
 		this.deleted = deleted;
+	}
+	
+	public TaskDifficulty getTaskDifficulty() {
+		return taskDifficulty;
+	}
+
+	public void setTaskDifficulty(TaskDifficulty taskDifficulty) {
+		this.taskDifficulty = taskDifficulty;
 	}
 
 	@Override

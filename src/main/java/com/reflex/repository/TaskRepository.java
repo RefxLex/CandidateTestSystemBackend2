@@ -28,9 +28,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 	List<Task> selectByTopic(@Param("topicId") Long topicId);
 	
 	@Query(
-			  value = "SELECT * FROM tasks WHERE task_difficulty = :level AND deleted = false",
+			  value = "SELECT * FROM tasks WHERE difficulty_id = :levelId AND deleted = false",
 			  nativeQuery = true)
-	List<Task> selectByLevel(@Param("level") String level);
+	List<Task> selectByLevel(@Param("levelId") Long levelId);
 	
 	@Query(
 			  value = "SELECT * FROM tasks WHERE deleted = false",
@@ -43,24 +43,24 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 	List<Task> selectByTopicAndName(@Param("name") String name, @Param("topicId") Long topicId);
 	
 	@Query(
-			  value = "SELECT * FROM tasks WHERE topic_id = :topicId AND task_difficulty = :level AND deleted = false",
+			  value = "SELECT * FROM tasks WHERE topic_id = :topicId AND difficulty_id = :levelId AND deleted = false",
 			  nativeQuery = true)
-	List<Task> selectByTopicAndLevel(@Param("level") String level, @Param("topicId") Long topicId);
+	List<Task> selectByTopicAndLevel(@Param("levelId") Long levelId, @Param("topicId") Long topicId);
 	
 	@Query(
-			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND task_difficulty = :level AND deleted = false",
+			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND difficulty_id = :levelId AND deleted = false",
 			  nativeQuery = true)
-	List<Task> selectByNameAndLevel(@Param("name") String name, @Param("level") String level);
+	List<Task> selectByNameAndLevel(@Param("name") String name, @Param("levelId") Long levelId);
 	
 	@Query(
-			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND topic_id = :topicId AND task_difficulty = :level AND deleted = false",
+			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND topic_id = :topicId AND difficulty_id = :levelId AND deleted = false",
 			  nativeQuery = true)
-	List<Task> selectByNameAndLevelAndTopic(@Param("name") String name, @Param("topicId") Long topicId, @Param("level") String level);
+	List<Task> selectByNameAndLevelAndTopic(@Param("name") String name, @Param("topicId") Long topicId, @Param("levelId") Long levelId);
 	
 	
 	
 	// For server side pagination  //
-	
+	/*
 	@Query(
 			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND deleted = false",
 			  countQuery = "SELECT count(*) FROM tasks",
@@ -108,4 +108,5 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 			  countQuery = "SELECT count(*) FROM tasks",
 			  nativeQuery = true)
 	Page<Task> selectByNameAndLevelAndTopicWithPagination(@Param("name") String name, @Param("topicId") Long topicId, @Param("level") String level, Pageable pageable);
+	*/
 }

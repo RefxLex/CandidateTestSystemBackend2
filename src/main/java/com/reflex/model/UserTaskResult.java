@@ -3,6 +3,7 @@ package com.reflex.model;
 import java.util.Date;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.*;
 
@@ -55,6 +56,7 @@ public class UserTaskResult {
 	
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name="input_id")
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	//@JsonIgnore
 	private TaskTestInput taskTestInput;
 	

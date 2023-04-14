@@ -44,6 +44,7 @@ import com.reflex.response.MessageResponse;
 import com.reflex.response.UserProfileResponse;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 
 @CrossOrigin
@@ -102,6 +103,27 @@ public class UserController {
         return new ResponseEntity<>(userProfile, HttpStatus.OK);
     }
     
+    
+    @GetMapping("/filter")
+    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+    public ResponseEntity<List<User>> getUserByStatus(
+    		@RequestParam String status,
+    		@RequestParam String full_name){
+    	    	
+    	List<User> users = new ArrayList<>();
+    	if( (status!="") && (full_name!="")) {
+    		users = userRepository.selectByUserStatusAndUserName(full_name, status);
+    	}else if ( (status=="") && (full_name=="") ) {
+    		users = userRepository.selectAll();
+    	}else if ( (status!="") && (full_name=="") ) {
+    		users = userRepository.selectByUserStatus(status);
+    	}else if ( (status=="") && (full_name!="") ) {
+    		users = userRepository.selectByUserName(full_name);
+    	}
+	    return new ResponseEntity<>(users, HttpStatus.OK);	
+    }
+    
+    /*
     @GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
     public ResponseEntity<List<User>> getUserByStatus(
@@ -119,7 +141,7 @@ public class UserController {
     		users = userRepository.selectByUserName(full_name);
     	}
 	    return new ResponseEntity<>(users, HttpStatus.OK);	
-    }
+    } */
     
     // For server side pagination
     /*
