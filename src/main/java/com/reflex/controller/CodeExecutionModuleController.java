@@ -180,15 +180,10 @@ public class CodeExecutionModuleController {
 		if (tasksDone) {
 			newUserTask.getUser().setUserStatus((UserStatus.submitted).toString());
 		}
-
-		// get input values list for exec module as array
-		Set<TaskTestInput> taskTestInputSet = new HashSet<>();
-		taskTestInputSet = oldUserTask.get().getTask().getTaskTestInput();
-		List<TaskTestInput> convertedInputList = new ArrayList<>();
-		for(TaskTestInput iterator: taskTestInputSet) {
-			convertedInputList.add(iterator);
-		}
 		
+		// get input values list for exec module
+		Set<TaskTestInput> taskTestInputSet = oldUserTask.get().getTask().getTaskTestInput();
+
 		RequestConfig requestConfig = RequestConfig.custom().
 			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
 		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
@@ -196,10 +191,10 @@ public class CodeExecutionModuleController {
 		String result="";
 		ObjectMapper mapper = new ObjectMapper();
 		SubmissionRequest request = new SubmissionRequest(userTaskRequest.getCode(), oldUserTask.get().getTaskCodeLanguageId());
-		for(int i=0; i<convertedInputList.size(); i++) {
+		for(TaskTestInput iterator: taskTestInputSet) {
 			
 			// set input base64
-			request.setStdin(Base64.getEncoder().encodeToString((convertedInputList.get(i).getInput()).getBytes()));
+			request.setStdin(Base64.getEncoder().encodeToString((iterator.getInput()).getBytes()));
 			String requestJSON = mapper.writeValueAsString(request);
 	        HttpPost post = new HttpPost(baseUrl + "/submissions/?base64_encoded=true&wait=false");
 	        post.addHeader("content-type", "application/json");
@@ -209,7 +204,7 @@ public class CodeExecutionModuleController {
 	             CloseableHttpResponse response = httpClient.execute(post)) {
 	            result = EntityUtils.toString(response.getEntity());
 	            SubmissionTokenResponse tokenResponse = mapper.readValue(result, SubmissionTokenResponse.class);
-	            UserTaskResult userTaskResult = new UserTaskResult(convertedInputList.get(i),tokenResponse.getToken());
+	            UserTaskResult userTaskResult = new UserTaskResult(tokenResponse.getToken(), iterator.getInput(), iterator.getOutput());
 	            newUserTask.getUserTaskResult().add(userTaskResult);
 	            
 	            // TODO: add retry? or one-time submit?
@@ -269,7 +264,7 @@ public class CodeExecutionModuleController {
 		String expectedOutput;
 		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
 			stdout = iterator.getStdout();
-			expectedOutput = iterator.getTaskTestInput().getOutput();
+			expectedOutput = iterator.getExpectedOutput();
 			if(expectedOutput.equals(stdout)) {
 				testsPassed = testsPassed + 1;
 			}

@@ -28,22 +28,22 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  Boolean existsByphone(String phone);
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE user_status = :status AND deleted = false AND user_status != 'none' ",
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND user_status != 'none' ",
 			  nativeQuery = true)
 	  List<User> selectByUserStatus(@Param("status") String status);
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND deleted = false AND user_status != 'none' ",
+			  value = "SELECT * FROM user_profile WHERE full_name LIKE :name% AND user_status != 'none' ",
 			  nativeQuery = true)
 	  List<User> selectByUserName(@Param("name") String name);
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE user_status != 'none' AND deleted = false",
+			  value = "SELECT * FROM user_profile WHERE user_status != 'none' ",
 			  nativeQuery = true)
 	  List<User> selectAll();
 	  
 	  @Query(
-			  value = "SELECT * FROM user_profile WHERE user_status = :status AND full_name LIKE :name% AND deleted = false AND user_status != 'none' ",
+			  value = "SELECT * FROM user_profile WHERE user_status = :status AND full_name LIKE :name% AND user_status != 'none' ",
 			  nativeQuery = true)
 	  List<User> selectByUserStatusAndUserName(@Param("name") String name, @Param("status") String status);
 	  

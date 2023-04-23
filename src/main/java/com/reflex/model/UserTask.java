@@ -23,13 +23,13 @@ public class UserTask {
 	
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="user_id", nullable=false)
-	@OnDelete(action = OnDeleteAction.NO_ACTION)
+	@OnDelete(action = OnDeleteAction.CASCADE)
 	@JsonIgnore
 	private User user;
 	
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="task_id", nullable=false)
-	@OnDelete(action = OnDeleteAction.NO_ACTION)
+	@OnDelete(action = OnDeleteAction.CASCADE)
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	private Task task;
 	
@@ -47,13 +47,6 @@ public class UserTask {
 	
 	@Column(name="time_spent", nullable=true)
 	private String timeSpent;
-	
-	/*
-	@Column(name="start_date", nullable=true, columnDefinition="text")
-	private String startDate;
-	
-	@Column(name="submit_date", nullable=true, columnDefinition="text")
-	private String submitDate; */
 	
 	@Column(nullable=true, columnDefinition="TEXT")
 	private String comment;
@@ -205,22 +198,6 @@ public class UserTask {
 	public Integer getTestsPassed() {
 		return testsPassed;
 	}
-	
-	/*
-	public String getStartDate() {
-		return startDate;
-	}
-
-	public void setStartDate(String startDate) {
-		this.startDate = startDate;
-	}
-
-	public String getSubmitDate() {
-		return submitDate;
-	}
-
-	public void setSubmitDate(String submitDate) {
-		this.submitDate = submitDate; */
 	
 	public String getTimeSpent() {
 		return timeSpent;

@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -123,26 +124,6 @@ public class UserController {
 	    return new ResponseEntity<>(users, HttpStatus.OK);	
     }
     
-    /*
-    @GetMapping("/filter")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<List<User>> getUserByStatus(
-    		@RequestParam (required = false) String status,
-    		@RequestParam (required = false) String full_name){
-    	    	
-    	List<User> users = new ArrayList<>();
-    	if( (status!=null) && (full_name!=null) ) {
-    		users = userRepository.selectByUserStatusAndUserName(full_name, status);
-    	}else if ( (status==null) && (full_name==null) ) {
-    		users = userRepository.selectAll();
-    	}else if ( (status!=null) && (full_name==null) ) {
-    		users = userRepository.selectByUserStatus(status);
-    	}else if ( (status==null) && (full_name!=null) ) {
-    		users = userRepository.selectByUserName(full_name);
-    	}
-	    return new ResponseEntity<>(users, HttpStatus.OK);	
-    } */
-    
     // For server side pagination
     /*
     @GetMapping("/filter")
@@ -184,46 +165,17 @@ public class UserController {
     		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     	
-    }
-    
-    @GetMapping("/search")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> getUserByName(
-		@RequestParam String name,
-		@RequestParam (defaultValue = "0") int page,
-		@RequestParam (defaultValue = "10") int size,
-		@RequestParam (defaultValue = "full_name") String sort,
-		@RequestParam (defaultValue = "ASC") String direction) {
-			
-	    List<User> users = new ArrayList<User>();
-	    Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sort));
-	    Page<User> pageUsers;
-	    try {
-	    	pageUsers = userRepository.selectByUserNameWithPagination(name, paging);
-	    	users = pageUsers.getContent();
-	    	
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("users", users);
-	        response.put("currentPage", pageUsers.getNumber());
-	        response.put("totalItems", pageUsers.getTotalElements());
-	        response.put("totalPages", pageUsers.getTotalPages());
-	        return new ResponseEntity<>(response, HttpStatus.OK);
-	    }
-    	catch (Exception e) {
-    		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-    	}
-	
-	} */
+    }*/
 
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	  public ResponseEntity<?> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
+	  public ResponseEntity<User> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
 		  
 	    if (userRepository.existsByemail(signUpRequest.getEmail())) {
-	      return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
+	      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is already in use!");
 	    }
 	    if(userRepository.existsByphone(signUpRequest.getPhone())) {
-	    	return ResponseEntity.badRequest().body(new MessageResponse("Error: Phone is already in use!"));
+	    	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone is already in use!");
 	    }
 	    
         int passwordLength = 10 + new Random().nextInt(15 - 5 + 1);
@@ -245,9 +197,7 @@ public class UserController {
 	          roles.add(userRole);
 
 	    user.setRoles(roles);
-	    userRepository.save(user);
-
-	    return ResponseEntity.ok(new MessageResponse("User created successfully!"));
+	    return new ResponseEntity<>(userRepository.save(user), HttpStatus.CREATED);
 	  }
 	
 	  @PutMapping("/status/{id}")
@@ -284,19 +234,32 @@ public class UserController {
 	        }
 	    }
 	  // soft delete
+	  /*
 	  @PutMapping("/delete/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	  public ResponseEntity<User> deleteUser(@PathVariable("id") Long id){
+	  public ResponseEntity<?> deleteUser(@PathVariable("id") Long id){
 	  Optional<User> oldUser = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
 		      new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User")));
 		if (oldUser.isPresent()) {
 		  User newUser = oldUser.get();
 		  newUser.setDeleted(true);
-		  return new ResponseEntity<>(userRepository.save(newUser), HttpStatus.OK);
+		  userRepository.save(newUser);
+		  return new ResponseEntity<>(null, HttpStatus.OK);
+		} else {
+		  throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");
+		}
+	  } */
+	  
+	  @DeleteMapping("/{id}")
+	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+	  public ResponseEntity<?> deleteUser(@PathVariable("id") Long id){
+	  Optional<User> user = userRepository.findById(id);
+		if (user.isPresent()) {
+		  userRepository.deleteById(id);
+		  return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 		} else {
 		  throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");
 		}
 	  }
 	  
-    
 }

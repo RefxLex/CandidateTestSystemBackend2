@@ -17,9 +17,6 @@ public class Topic {
 	@Column(nullable=false, unique=true)
 	private String name;
 	
-	@Column(nullable=false)
-	private boolean deleted = false;
-	
 	public Topic() {
 		
 	}
@@ -44,17 +41,9 @@ public class Topic {
 		this.name = name;
 	}
 
-	public boolean isDeleted() {
-		return deleted;
-	}
-
-	public void setDeleted(boolean deleted) {
-		this.deleted = deleted;
-	}
-
 	@Override
 	public String toString() {
-		return "Topic [id=" + id + ", name=" + name + ", deleted=" + deleted + "]";
+		return "Topic [id=" + id + ", name=" + name + "]";
 	}
 
 }

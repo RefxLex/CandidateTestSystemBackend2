@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name="user_task_result")
@@ -54,18 +55,27 @@ public class UserTaskResult {
 	@Column(name="submission_token", nullable=false)
 	private String submissionToken;
 	
+	@NotBlank
+	@Column(nullable=false, columnDefinition="TEXT")
+	private String testInput;
+	
+	@NotBlank
+	@Column(nullable=false, columnDefinition="TEXT")
+	private String expectedOutput;
+	
+	/*
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name="input_id")
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-	//@JsonIgnore
-	private TaskTestInput taskTestInput;
+	private TaskTestInput taskTestInput; */
 	
 	public UserTaskResult() {
 		
 	}
-	public UserTaskResult(TaskTestInput taskTestInput,String submissionToken) {
-		this.taskTestInput = taskTestInput;
+	public UserTaskResult(String submissionToken, String testInput, String expectedOutput) {
 		this.submissionToken = submissionToken;
+		this.testInput = testInput;
+		this.expectedOutput = expectedOutput;
 	}
 	
 	public Long getId() {
@@ -80,14 +90,28 @@ public class UserTaskResult {
 	public void setSubmissionToken(String submissionToken) {
 		this.submissionToken = submissionToken;
 	}
+	/*
 	public TaskTestInput getTaskTestInput() {
 		return taskTestInput;
 	}
 	public void setTaskTestInput(TaskTestInput taskTestInput) {
 		this.taskTestInput = taskTestInput;
-	}
+	} */
+	
 	public String getStdout() {
 		return stdout;
+	}
+	public String getTestInput() {
+		return testInput;
+	}
+	public void setTestInput(String testInput) {
+		this.testInput = testInput;
+	}
+	public String getExpectedOutput() {
+		return expectedOutput;
+	}
+	public void setExpectedOutput(String expectedOutput) {
+		this.expectedOutput = expectedOutput;
 	}
 	public void setStdout(String stdout) {
 		this.stdout = stdout;

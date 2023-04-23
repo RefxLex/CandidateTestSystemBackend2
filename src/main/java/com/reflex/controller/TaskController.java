@@ -36,9 +36,12 @@ import com.reflex.model.User;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.TaskDifficultyRepository;
 import com.reflex.repository.TaskRepository;
+import com.reflex.repository.TaskTestInputRepository;
 import com.reflex.repository.TopicRepository;
 import com.reflex.request.TaskRequest;
+import com.reflex.request.TestInputRequest;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @CrossOrigin
@@ -54,6 +57,9 @@ public class TaskController {
 	
 	@Autowired
 	TaskDifficultyRepository taskDifficultyRepository;
+	
+	@Autowired
+	TaskTestInputRepository taskTestInputRepository;
 	
 	@GetMapping("/{id}")
 	public ResponseEntity<Task> getTaskById(@PathVariable ("id") Long id){
@@ -99,44 +105,6 @@ public class TaskController {
 		
 	    return new ResponseEntity<>(tasks, HttpStatus.OK);
 	}
-	
-	/*
-	@GetMapping("/filter")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	public ResponseEntity<List<Task>> getTaskByFilter(
-			@RequestParam (required=false) String name,
-			@RequestParam (required=false) Long topic,
-			@RequestParam (required=false) String level){
-		
-		List<Task> tasks = new ArrayList<Task>();
-
-		if( (name!=null) && (topic==null) && (level==null)) {
-			tasks = taskRepository.selectByName(name);
-		}
-		else if((name!=null) && (topic!=null) && (level==null)) {
-			tasks = taskRepository.selectByTopicAndName(name, topic);
-		}
-		else if((name==null) && (topic!=null) && (level!=null)) {
-			tasks = taskRepository.selectByTopicAndLevel(level, topic);
-		}
-		else if((name!=null) && (topic==null) && (level!=null)) {
-			tasks = taskRepository.selectByNameAndLevel(name, level);
-		}
-		else if((name!=null) && (topic!=null) && (level!=null)) {
-			tasks = taskRepository.selectByNameAndLevelAndTopic(name, topic, level);
-		}
-		else if((name==null) && (topic!=null) && (level==null)) {
-			tasks = taskRepository.selectByTopic(topic);
-		}
-		else if((name==null) && (topic==null) && (level!=null)) {
-			tasks = taskRepository.selectByLevel(level);
-		}
-		else {
-			tasks = taskRepository.selectAll();
-		}
-		
-	    return new ResponseEntity<>(tasks, HttpStatus.OK);
-	} */
 	
 	// For server side pagination
 	/*
@@ -213,49 +181,53 @@ public class TaskController {
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(taskRequest.getTopicId()).orElseThrow(() ->
         	new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + taskRequest.getTopicId() )));
 
-        Optional<TaskDifficulty> difficulty = taskDifficultyRepository.findByname(taskRequest.getName());
-        if(difficulty.isPresent()) {
-            Task task = new Task(
-            		taskRequest.getName(),
-            		topic.get(),
-            		difficulty.get(),
-            		taskRequest.getDescription(),
-            		taskRequest.getTaskTestInput());
-            return new ResponseEntity<>(taskRepository.save(task), HttpStatus.CREATED);
-        }
-        else {
-        	throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with name=" + taskRequest.getTaskDifficulty());
-        }
+        Optional<TaskDifficulty> difficulty = Optional.ofNullable(taskDifficultyRepository.findById(taskRequest.getDifficultyId()).orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with id=" + taskRequest.getDifficultyId() )));
         
+        Task task = new Task(
+        		taskRequest.getName(),
+        		topic.get(),
+        		difficulty.get(),
+        		taskRequest.getDescription());
+        
+        List<TestInputRequest> testInputList = taskRequest.getTaskTestInput();
+        for(int i=0; i<testInputList.size(); i++) {
+        	String input = testInputList.get(i).getInput();
+        	String output = testInputList.get(i).getOutput();
+        	TaskTestInput testInput = new TaskTestInput(input, output);
+        	task.getTaskTestInput().add(testInput);
+        }
+        return new ResponseEntity<>(taskRepository.save(task), HttpStatus.CREATED);
     }
 	
 	@PutMapping("/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<Task> updateTask(@PathVariable("id") Long id, @Valid @RequestBody TaskRequest taskRequest){
+		
 		Optional<Task> oldTask = Optional.ofNullable(taskRepository.findById(id).orElseThrow(() ->
 		new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with id=" + id)));
-		
-		if(taskRepository.existsByname(taskRequest.getName())) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task name already taken");
-		}
+		Task newTask = oldTask.get();
+				
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(taskRequest.getTopicId()).orElseThrow(() ->
     	new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + taskRequest.getTopicId() )));
-
-        Optional<TaskDifficulty> difficulty = taskDifficultyRepository.findByname(taskRequest.getName());
-	    if(difficulty.isPresent()) {
-	    	
-	        Task newTask = oldTask.get();
-	        newTask.setName(taskRequest.getName());
-	        newTask.setTopic(topic.get());
-	        newTask.setTaskDifficulty(difficulty.get());
-	        newTask.setDescription(taskRequest.getDescription());
-	        newTask.setTaskTestInput(taskRequest.getTaskTestInput());
-	  
-	        return new ResponseEntity<>(taskRepository.save(newTask), HttpStatus.OK);
-	    }
-	    else {
-	    	throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with name=" + taskRequest.getTaskDifficulty());
-	    }
+        
+        Optional<TaskDifficulty> difficulty = Optional.ofNullable(taskDifficultyRepository.findById(taskRequest.getDifficultyId()).orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with id=" + taskRequest.getDifficultyId() )));
+        
+        newTask.getTaskTestInput().clear();
+        List<TestInputRequest> testInputList = taskRequest.getTaskTestInput();
+        for(int i=0; i<testInputList.size(); i++) {
+        	String input = testInputList.get(i).getInput();
+        	String output = testInputList.get(i).getOutput();
+        	TaskTestInput testInput = new TaskTestInput(input, output);
+        	newTask.getTaskTestInput().add(testInput);
+        }
+        
+	    newTask.setName(taskRequest.getName());
+	    newTask.setTopic(topic.get());
+	    newTask.setTaskDifficulty(difficulty.get());
+	    newTask.setDescription(taskRequest.getDescription());
+	    return new ResponseEntity<>(taskRepository.save(newTask), HttpStatus.OK);
 	}
 	
 	//soft delete
@@ -268,6 +240,9 @@ public class TaskController {
         newTask.setDeleted(true);
         return new ResponseEntity<>(taskRepository.save(newTask), HttpStatus.OK);
 	}
+	
+	
+	
 	
 	
 

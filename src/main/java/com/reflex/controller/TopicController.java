@@ -43,14 +43,8 @@ public class TopicController {
 	@GetMapping("/all")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<List<Topic>> getAllTopics(){
-		
 		List<Topic> topicList = new ArrayList<Topic>();
 		topicList = topicRepository.findAll();
-		for(int i=0; i<topicList.size(); i++) {
-			if(topicList.get(i).isDeleted()) {
-				topicList.remove(i);
-			}
-		}
 		return new ResponseEntity<>(topicList, HttpStatus.OK);
 	}
 	
@@ -78,6 +72,7 @@ public class TopicController {
 	}
 	
 	// soft delete
+	/*
 	@PutMapping("/delete/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> deleteTopic(@PathVariable("id") Long id){
@@ -88,9 +83,6 @@ public class TopicController {
 		Topic newTopic = oldTopic.get();
 		newTopic.setDeleted(true);
 		return new ResponseEntity<>(topicRepository.save(newTopic), HttpStatus.OK);
-	}
+	} */
 	
-	
-	
-
 }

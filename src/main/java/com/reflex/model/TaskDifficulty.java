@@ -21,8 +21,7 @@ public class TaskDifficulty {
 		
 	}
 
-	public TaskDifficulty(Long id, String name) {
-		this.id = id;
+	public TaskDifficulty(String name) {
 		this.name = name;
 	}
 

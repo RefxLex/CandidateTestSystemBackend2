@@ -24,8 +24,7 @@ public class TaskTestInput {
 		
 	}
 
-	public TaskTestInput(Long id, @NotBlank String input, @NotBlank String output) {
-		this.id = id;
+	public TaskTestInput(@NotBlank String input, @NotBlank String output) {
 		this.input = input;
 		this.output = output;	
 	}

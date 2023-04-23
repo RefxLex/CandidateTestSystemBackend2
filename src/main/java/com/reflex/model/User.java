@@ -58,9 +58,6 @@ public class User {
 	@Column(name="last_score", nullable=true)
 	private String lastScore;
 	
-	@Column(nullable=false)
-	private boolean deleted = false;
-	
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "user_roles", 
 	             joinColumns = @JoinColumn(name = "user_id"),
@@ -163,22 +160,6 @@ public class User {
 		    this.roles = roles;
 	}
 
-	public boolean isDeleted() {
-		return deleted;
-	}
-
-	public void setDeleted(boolean deleted) {
-		this.deleted = deleted;
-	}
-	/*
-	public Set<UserTaskGroup> getUserTaskGroup() {
-		return userTaskGroup;
-	}
-
-	public void setUserTaskGroup(Set<UserTaskGroup> userTaskGroup) {
-		this.userTaskGroup = userTaskGroup;
-	} */
-	
 	public String getLastScore() {
 		return lastScore;
 	}
@@ -191,7 +172,7 @@ public class User {
 	public String toString() {
 		return "User [id=" + id + ", email=" + email + ", userName=" + userName + ", password=" + password
 				+ ", fullName=" + fullName + ", phone=" + phone + ", info=" + info + ", userStatus=" + userStatus
-				+ ", lastActivity=" + lastActivity + ", deleted=" + deleted + ", roles=" + roles + "]";
+				+ ", lastActivity=" + lastActivity + ", lastScore=" + lastScore + ", roles=" + roles + "]";
 	}
-	
+
 }

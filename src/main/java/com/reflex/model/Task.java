@@ -28,7 +28,7 @@ public class Task {
 	
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
 	@JoinColumn(name="topic_id", nullable=false)
-	@OnDelete(action=OnDeleteAction.NO_ACTION)
+	@OnDelete(action=OnDeleteAction.CASCADE)
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	public Topic topic;
 	
@@ -37,12 +37,6 @@ public class Task {
 	@OnDelete(action=OnDeleteAction.CASCADE)
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	public TaskDifficulty taskDifficulty;
-	
-	/*
-	@NotBlank
-	@Size(max=50)
-	@Column(name="task_difficulty", nullable=false)
-	private String taskDifficulty; */
 	
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String description;
@@ -59,14 +53,12 @@ public class Task {
 		
 	}
 	
-	public Task(@NotBlank String name, Topic topic, TaskDifficulty taskDifficulty, String description, 
-			Set<TaskTestInput> taskTestInput){
-
+	public Task(@NotBlank String name, Topic topic, TaskDifficulty taskDifficulty, String description){
+		
 		this.name = name;
 		this.topic = topic;
 		this.taskDifficulty = taskDifficulty;
 		this.description = description;
-		this.taskTestInput = taskTestInput;
 	}
 
 	public Long getId() {

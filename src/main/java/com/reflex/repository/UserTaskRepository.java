@@ -22,6 +22,5 @@ public interface UserTaskRepository extends JpaRepository<UserTask, Long> {
 			  value = "SELECT * FROM user_tasks WHERE assign_date >= :day AND assign_date < :next_day ",
 			  nativeQuery = true)
 	  List<UserTask> selectByLastAssingDate(@Param("day") Instant day, @Param("next_day") Instant nextDay);
-	  //List<UserTask> selectByLastAssingDate(@Param("day") String day, @Param("next_day") String nextDay);
-	  	
+  	
 }

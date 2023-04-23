@@ -1,12 +1,10 @@
 package com.reflex.request;
 
-import java.util.ArrayList;
-import java.util.Set;
 
-import com.reflex.model.TaskTestInput;
-
+import java.util.List;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class TaskRequest {
@@ -15,17 +13,16 @@ public class TaskRequest {
 	@Size(max=50)
 	private String name;
 	
-	@NotBlank
+	@NotNull
 	private Long topicId;
 	
-	@NotBlank
-	@Size(max=30)
-	private String taskDifficulty;
+	@NotNull
+	private Long difficultyId;
 	
 	private String description;
 	
 	@NotEmpty
-	private Set<TaskTestInput> taskTestInput;
+	private List<TestInputRequest> taskTestInput;
 
 	public String getName() {
 		return name;
@@ -43,14 +40,6 @@ public class TaskRequest {
 		this.topicId = topicId;
 	}
 
-	public String getTaskDifficulty() {
-		return taskDifficulty;
-	}
-
-	public void setTaskDifficulty(String taskDifficulty) {
-		this.taskDifficulty = taskDifficulty;
-	}
-
 	public String getDescription() {
 		return description;
 	}
@@ -59,12 +48,20 @@ public class TaskRequest {
 		this.description = description;
 	}
 
-	public Set<TaskTestInput> getTaskTestInput() {
+	public List<TestInputRequest> getTaskTestInput() {
 		return taskTestInput;
 	}
 
-	public void setTaskTestInput(Set<TaskTestInput> taskTestInput) {
+	public void setTaskTestInput(List<TestInputRequest> taskTestInput) {
 		this.taskTestInput = taskTestInput;
 	}
 
+	public Long getDifficultyId() {
+		return difficultyId;
+	}
+
+	public void setDifficultyId(Long difficultyId) {
+		this.difficultyId = difficultyId;
+	}
+	
 }
