@@ -52,7 +52,7 @@ public class UserTaskResult {
 	@Column(nullable=true)
 	private float memory;
 	
-	@Column(name="submission_token", nullable=false)
+	@Column(name="submission_token", nullable=true)
 	private String submissionToken;
 	
 	@NotBlank
@@ -63,17 +63,11 @@ public class UserTaskResult {
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String expectedOutput;
 	
-	/*
-	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name="input_id")
-	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-	private TaskTestInput taskTestInput; */
-	
 	public UserTaskResult() {
 		
 	}
-	public UserTaskResult(String submissionToken, String testInput, String expectedOutput) {
-		this.submissionToken = submissionToken;
+	
+	public UserTaskResult(String testInput, String expectedOutput) {
 		this.testInput = testInput;
 		this.expectedOutput = expectedOutput;
 	}
@@ -90,14 +84,7 @@ public class UserTaskResult {
 	public void setSubmissionToken(String submissionToken) {
 		this.submissionToken = submissionToken;
 	}
-	/*
-	public TaskTestInput getTaskTestInput() {
-		return taskTestInput;
-	}
-	public void setTaskTestInput(TaskTestInput taskTestInput) {
-		this.taskTestInput = taskTestInput;
-	} */
-	
+
 	public String getStdout() {
 		return stdout;
 	}

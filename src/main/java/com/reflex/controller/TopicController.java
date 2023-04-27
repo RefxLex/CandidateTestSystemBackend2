@@ -33,7 +33,7 @@ public class TopicController {
 	TopicRepository topicRepository;
 	
 	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<Topic> getTopicById(@PathVariable("id") Long id){
         Optional<Topic> topic = Optional.ofNullable(topicRepository.findById(id).orElseThrow(() ->
         	new ResponseStatusException(HttpStatus.NOT_FOUND, "No such Topic")));
@@ -41,7 +41,7 @@ public class TopicController {
 	}
 	
 	@GetMapping("/all")
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<List<Topic>> getAllTopics(){
 		List<Topic> topicList = new ArrayList<Topic>();
 		topicList = topicRepository.findAll();

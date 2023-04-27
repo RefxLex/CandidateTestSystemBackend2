@@ -66,6 +66,9 @@ public class UserTask {
 	@Column(name="overall_test_count", nullable=false)
 	private int overallTestsCount;
 	
+	@Column(nullable=false)
+	private boolean completed = false;
+	
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_task_id")
 	private Set<UserTaskResult> userTaskResult = new HashSet<>();
@@ -84,7 +87,7 @@ public class UserTask {
 		this.overallTestsCount = overallTestsCount;
 		this.testsPassed = 0;
 		this.testsFailed = 0;
-
+		
 	}
 
 	public Long getId() {
@@ -205,6 +208,14 @@ public class UserTask {
 
 	public void setTimeSpent(String timeSpent) {
 		this.timeSpent = timeSpent;
+	}
+	
+	public boolean isCompleted() {
+		return completed;
+	}
+
+	public void setCompleted(boolean completed) {
+		this.completed = completed;
 	}
 
 	@Override

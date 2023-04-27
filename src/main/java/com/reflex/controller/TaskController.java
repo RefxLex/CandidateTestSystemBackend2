@@ -62,6 +62,7 @@ public class TaskController {
 	TaskTestInputRepository taskTestInputRepository;
 	
 	@GetMapping("/{id}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<Task> getTaskById(@PathVariable ("id") Long id){
         Optional<Task> task = Optional.ofNullable(taskRepository.findById(id).orElseThrow(() ->
     	new ResponseStatusException(HttpStatus.NOT_FOUND, "No task found with id=" + id)));
@@ -164,12 +165,12 @@ public class TaskController {
 		
 	} */
 	
+	/*
 	@GetMapping("/difficulty")
-	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<List<TaskDifficulty>> getAllDifficultyLevels(){
 		List<TaskDifficulty> difficulties = taskDifficultyRepository.findAll();
 	    return new ResponseEntity<>(difficulties, HttpStatus.OK);
-	}
+	} */
 	
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('ADMIN')")

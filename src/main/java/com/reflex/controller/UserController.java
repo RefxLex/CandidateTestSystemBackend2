@@ -166,7 +166,14 @@ public class UserController {
     	}
     	
     }*/
-
+    
+    @GetMapping("/admins")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<User>> findAdmins(){
+    	List<User> userList = userRepository.selectByUserStatusNone();
+    	return new ResponseEntity<>(userList,HttpStatus.OK);
+    }
+    
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	  public ResponseEntity<User> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
@@ -198,6 +205,37 @@ public class UserController {
 
 	    user.setRoles(roles);
 	    return new ResponseEntity<>(userRepository.save(user), HttpStatus.CREATED);
+	  }
+	
+	  @PostMapping("/create/admin")
+	  @PreAuthorize("hasRole('ADMIN')")
+	  public ResponseEntity<User> createAdmin(@RequestParam String role, @Valid @RequestBody SignupRequest signUpRequest){
+		    if (userRepository.existsByemail(signUpRequest.getEmail())) {
+			    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is already in use!");
+			}
+			if(userRepository.existsByphone(signUpRequest.getPhone())) {
+			    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone is already in use!");
+			}
+			
+	        int passwordLength = 10 + new Random().nextInt(15 - 5 + 1);
+	        String generatedPassword = RandomStringUtils.random(passwordLength, true, true);
+	        String generatedUserName = RandomStringUtils.random(7, true, true);
+		    
+		    User user = new User(
+		    		generatedUserName,
+		            signUpRequest.getEmail(),
+		            encoder.encode(generatedPassword),
+		            signUpRequest.getFullName(),
+		            signUpRequest.getPhone(),
+		            signUpRequest.getInfo(),
+		            UserStatus.none.name());
+
+		    Set<Role> roles = new HashSet<>();
+		    Role userRole = roleRepository.selectByName(role)
+		              .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Couldn't find role " + role));
+		          roles.add(userRole);
+		    user.setRoles(roles);
+		    return new ResponseEntity<>(userRepository.save(user), HttpStatus.CREATED);
 	  }
 	
 	  @PutMapping("/status/{id}")
@@ -233,23 +271,7 @@ public class UserController {
 	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");
 	        }
 	    }
-	  // soft delete
-	  /*
-	  @PutMapping("/delete/{id}")
-	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	  public ResponseEntity<?> deleteUser(@PathVariable("id") Long id){
-	  Optional<User> oldUser = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
-		      new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User")));
-		if (oldUser.isPresent()) {
-		  User newUser = oldUser.get();
-		  newUser.setDeleted(true);
-		  userRepository.save(newUser);
-		  return new ResponseEntity<>(null, HttpStatus.OK);
-		} else {
-		  throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");
-		}
-	  } */
-	  
+
 	  @DeleteMapping("/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	  public ResponseEntity<?> deleteUser(@PathVariable("id") Long id){

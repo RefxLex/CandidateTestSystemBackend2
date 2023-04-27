@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,7 @@ public class TaskDifficultyController {
 	TaskDifficultyRepository taskDifficultyRepository;
 	
 	@GetMapping("/{id}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<TaskDifficulty> getLevelById(@PathVariable("id") Long levelId){
 		Optional<TaskDifficulty> taskDifficulty = taskDifficultyRepository.findById(levelId);
 		if(taskDifficulty.isEmpty()) {
@@ -40,18 +42,21 @@ public class TaskDifficultyController {
 	}
 	
 	@GetMapping("/all")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<List<TaskDifficulty>> getAllLevels(){
 		List<TaskDifficulty> taskDifficultyList = taskDifficultyRepository.findAll();
 		return new ResponseEntity<>(taskDifficultyList, HttpStatus.OK);
 	}
 	
 	@PostMapping("/create")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<TaskDifficulty> createLevel(@Valid @RequestBody TopicRequest levelRequest){
 		TaskDifficulty taskDifficulty = new TaskDifficulty(levelRequest.getName());
 		return new ResponseEntity<>(taskDifficultyRepository.save(taskDifficulty), HttpStatus.CREATED);
 	}
 	
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<TaskDifficulty> updateLevel(@PathVariable("id") Long levelId, @Valid @RequestBody TopicRequest levelRequest){
 		Optional<TaskDifficulty> oldTaskDifficulty = taskDifficultyRepository.findById(levelId);
 		if(oldTaskDifficulty.isEmpty()) {

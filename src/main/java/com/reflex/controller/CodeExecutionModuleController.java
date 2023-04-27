@@ -22,6 +22,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -128,94 +129,64 @@ public class CodeExecutionModuleController {
 	
 	@PutMapping("/submission/{id}")
 	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<?> createSubmission(@PathVariable ("id") Long userTaskId,
+	public ResponseEntity<List<SubmissionTokenResponse>> createSubmission(@PathVariable ("id") Long userTaskId,
 		@Valid @RequestBody UserTaskRequest userTaskRequest) throws IOException{
+		
 		Optional<UserTask> oldUserTask = userTaskRepository.findById(userTaskId);
 		if(oldUserTask.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user_task found with id=" + userTaskId);
 		}
 		UserTask newUserTask = oldUserTask.get();
-		newUserTask.setCode(userTaskRequest.getCode());
-		newUserTask.setSubmitDate(Instant.now());
 		
-		String timeSpent="";
-		double minutesSpent = 0;
-		double hoursSpent = 0;
-		double daysSpent = 0;
-		double secondsSpent = (double) (newUserTask.getSubmitDate().getEpochSecond() - newUserTask.getStartDate().getEpochSecond());
-		if (secondsSpent > 60) {
-			minutesSpent = Math.floor(secondsSpent/60);
+		if(newUserTask.isCompleted()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already completed");
 		}
-		if (minutesSpent > 60) {
-			hoursSpent = Math.floor(minutesSpent/60);
-		}
-		if (hoursSpent > 24) {
-			daysSpent = Math.floor(hoursSpent/24);
-		}
+		else {
 		
-		if (daysSpent > 0) {
-			timeSpent = timeSpent + ((Long)Math.round(daysSpent)).toString() + "d ";
-			if (hoursSpent > 0) {
-				timeSpent = timeSpent + ((Long)Math.round(hoursSpent - daysSpent*24)).toString() + "h ";
-				if (minutesSpent > 0) {
-					timeSpent = timeSpent + ((Long)Math.round(minutesSpent - hoursSpent*60)).toString() + "m ";
-					if (secondsSpent > 0) {
-						timeSpent = timeSpent + ((Long)Math.round(secondsSpent - minutesSpent*60)).toString() + "s";
-					}
-				}
-			}
-		}
-		newUserTask.setTimeSpent(timeSpent);
-		newUserTask.getUser().setLastActivity(Date.from(Instant.now()));
-		
-
-		// check if user done all tasks
-		boolean tasksDone=true;
-		List<UserTask> userTaskList = userTaskRepository.selectByUserId(newUserTask.getUser().getId());
-		for (UserTask iterator: userTaskList) {
-			if(iterator.getSubmitDate()==null) {
-				tasksDone = false;
-			}
-		}
-		if (tasksDone) {
-			newUserTask.getUser().setUserStatus((UserStatus.submitted).toString());
-		}
-		
-		// get input values list for exec module
-		Set<TaskTestInput> taskTestInputSet = oldUserTask.get().getTask().getTaskTestInput();
-
-		RequestConfig requestConfig = RequestConfig.custom().
-			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
-		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
-		
-		String result="";
-		ObjectMapper mapper = new ObjectMapper();
-		SubmissionRequest request = new SubmissionRequest(userTaskRequest.getCode(), oldUserTask.get().getTaskCodeLanguageId());
-		for(TaskTestInput iterator: taskTestInputSet) {
+			newUserTask.setCode(userTaskRequest.getCode());
 			
-			// set input base64
-			request.setStdin(Base64.getEncoder().encodeToString((iterator.getInput()).getBytes()));
-			String requestJSON = mapper.writeValueAsString(request);
-	        HttpPost post = new HttpPost(baseUrl + "/submissions/?base64_encoded=true&wait=false");
-	        post.addHeader("content-type", "application/json");
-	        post.setEntity(new StringEntity(requestJSON));
-
-	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
-	             CloseableHttpResponse response = httpClient.execute(post)) {
-	            result = EntityUtils.toString(response.getEntity());
-	            SubmissionTokenResponse tokenResponse = mapper.readValue(result, SubmissionTokenResponse.class);
-	            UserTaskResult userTaskResult = new UserTaskResult(tokenResponse.getToken(), iterator.getInput(), iterator.getOutput());
-	            newUserTask.getUserTaskResult().add(userTaskResult);
-	            
-	            // TODO: add retry? or one-time submit?
-	            
-	        }
-		}
-		// save user code and token
-		userTaskRepository.save(newUserTask);
-		return new ResponseEntity<>(null, HttpStatus.OK);
-	}
+			RequestConfig requestConfig = RequestConfig.custom().
+				    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
+			HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
+			
+			String result="";
+			ObjectMapper mapper = new ObjectMapper();
+			SubmissionRequest request = new SubmissionRequest(userTaskRequest.getCode(), oldUserTask.get().getTaskCodeLanguageId());
+			
+			List<SubmissionTokenResponse> tokenResponseList = new ArrayList<>();
+			
+			for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
+				
+				// set input base64
+				request.setStdin(Base64.getEncoder().encodeToString((iterator.getTestInput()).getBytes()));
+				String requestJSON = mapper.writeValueAsString(request);
+		        HttpPost post = new HttpPost(baseUrl + "/submissions/?base64_encoded=true&wait=false");
+		        post.addHeader("content-type", "application/json");
+		        post.setEntity(new StringEntity(requestJSON));
 	
+		        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+		             CloseableHttpResponse response = httpClient.execute(post)) {	        	
+		        	int statusCode = response.getStatusLine().getStatusCode();
+		        	if(statusCode == 201) {		        	
+			            result = EntityUtils.toString(response.getEntity());
+			            SubmissionTokenResponse tokenResponse = mapper.readValue(result, SubmissionTokenResponse.class);
+			            tokenResponseList.add(tokenResponse);
+			            iterator.setSubmissionToken(tokenResponse.getToken());
+		        	}
+		        	else {
+		        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
+		        	}
+		                        
+		        }
+		        catch(HttpHostConnectException exception) {
+		        	throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
+		        }
+			}
+			// save user code and token
+			userTaskRepository.save(newUserTask);
+			return new ResponseEntity<>(tokenResponseList, HttpStatus.OK);
+		}
+	}
 	
 	@PutMapping("/submission/result/{id}")
 	@Transactional
@@ -226,76 +197,142 @@ public class CodeExecutionModuleController {
 		}
 		UserTask newUserTask = oldUserTask.get();
 		
-		RequestConfig requestConfig = RequestConfig.custom().
-			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
-		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
-		ObjectMapper mapper = new ObjectMapper();
+		if(newUserTask.isCompleted()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already completed");
+		}
+		else {
 		
-		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
+			RequestConfig requestConfig = RequestConfig.custom().
+				    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
+			HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
+			ObjectMapper mapper = new ObjectMapper();
 			
-			HttpGet request = new HttpGet(baseUrl + "/submissions/" + iterator.getSubmissionToken());
-	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
-	             CloseableHttpResponse response = httpClient.execute(request)) {
-
-	            HttpEntity entity = response.getEntity();
-	            if (entity != null) {
-	            	String result = EntityUtils.toString(entity);
-	            	SubmissionResultResponse resultResponse = mapper.readValue(result, SubmissionResultResponse.class);
-	            	iterator.setStdout(resultResponse.getStdout());
-	            	iterator.setStderr(resultResponse.getStderr());
-	            	iterator.setCompile_output(resultResponse.getCompile_output());
-	            	iterator.setMessage(resultResponse.getMessage());
-	            	iterator.setExit_code(resultResponse.getExit_code());
-	            	iterator.setExit_signal(resultResponse.getExit_signal());
-	            	iterator.setStatus(resultResponse.getStatus().getDescription());
-	            	iterator.setCreated_at(resultResponse.getCreated_at());
-	            	iterator.setFinished_at(resultResponse.getFinished_at());
-	            	iterator.setTime(resultResponse.getTime());
-	            	iterator.setWall_time(resultResponse.getWall_time());
-	            	iterator.setMemory(resultResponse.getMemory());
-	            }    
-	        }	
-	    }
-		
-		// check if tests are passed
-		Integer testsPassed=0;
-		Integer testsFailed=0;
-		String stdout;
-		String expectedOutput;
-		for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
-			stdout = iterator.getStdout();
-			expectedOutput = iterator.getExpectedOutput();
-			if(expectedOutput.equals(stdout)) {
-				testsPassed = testsPassed + 1;
+			for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
+				
+				HttpGet request = new HttpGet(baseUrl + "/submissions/" + iterator.getSubmissionToken());
+		        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+		             CloseableHttpResponse response = httpClient.execute(request)) {
+		        	
+		        	int statusCode = response.getStatusLine().getStatusCode();
+		        	if(statusCode == 200) {	
+			            HttpEntity entity = response.getEntity();
+			            if (entity != null) {
+			            	String result = EntityUtils.toString(entity);
+			            	SubmissionResultResponse resultResponse = mapper.readValue(result, SubmissionResultResponse.class);
+			            	iterator.setStdout(resultResponse.getStdout());
+			            	iterator.setStderr(resultResponse.getStderr());
+			            	iterator.setCompile_output(resultResponse.getCompile_output());
+			            	iterator.setMessage(resultResponse.getMessage());
+			            	iterator.setExit_code(resultResponse.getExit_code());
+			            	iterator.setExit_signal(resultResponse.getExit_signal());
+			            	iterator.setStatus(resultResponse.getStatus().getDescription());
+			            	iterator.setCreated_at(resultResponse.getCreated_at());
+			            	iterator.setFinished_at(resultResponse.getFinished_at());
+			            	iterator.setTime(resultResponse.getTime());
+			            	iterator.setWall_time(resultResponse.getWall_time());
+			            	iterator.setMemory(resultResponse.getMemory());
+			            }
+		        	}
+		        	else {
+		        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
+		        	}
+		        }
+		        catch(HttpHostConnectException exception) {
+		        	throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
+		        }
+		    }
+			
+			Instant submitDate = Instant.now();
+			newUserTask.setSubmitDate(submitDate);
+			
+			// check if tests are passed
+			Integer testsPassed=0;
+			Integer testsFailed=0;
+			String stdout;
+			String expectedOutput;
+			for(UserTaskResult iterator: newUserTask.getUserTaskResult()) {
+				stdout = iterator.getStdout();
+				expectedOutput = iterator.getExpectedOutput();
+				if(expectedOutput.equals(stdout)) {
+					testsPassed = testsPassed + 1;
+				}
+				else {
+					testsFailed = testsFailed + 1;
+				}	
 			}
-			else {
-				testsFailed = testsFailed + 1;
-			}	
-		}
-		newUserTask.setTestsPassed(testsPassed);
-		newUserTask.setTestsFailed(testsFailed);
-		
-	// calculate user score
-		User user = newUserTask.getUser();
-		Instant lastTaskAssingDate = newUserTask.getAssignDate();
-		Instant nextDay = lastTaskAssingDate.plusSeconds(24*60*60);
-		
-		// include tests from current task first
-		int allTestsSum=newUserTask.getOverallTestsCount();
-		int allPassedTestsSum=testsPassed;
-		
-		// then check for tasks assigned in same day as current task
-		List<UserTask> userTaskList = userTaskRepository.selectByLastAssingDate(lastTaskAssingDate, nextDay);
-		if(userTaskList.isEmpty()==false) {
-			for(UserTask iterator: userTaskList) {
-				allTestsSum = allTestsSum + iterator.getOverallTestsCount();
-				allPassedTestsSum = allPassedTestsSum + iterator.getTestsPassed();
+			newUserTask.setTestsPassed(testsPassed);
+			newUserTask.setTestsFailed(testsFailed);
+			
+			
+			// check if user done all tasks
+			boolean tasksDone=true;
+			List<UserTask> userTasks = userTaskRepository.selectByUserId(newUserTask.getUser().getId());
+			for (UserTask iterator: userTasks) {
+				if(iterator.getSubmitDate()==null) {
+					tasksDone = false;
+				}
 			}
+			if (tasksDone) {
+				newUserTask.getUser().setUserStatus((UserStatus.submitted).toString());
+			}
+			
+			
+		// calc time spent
+			String timeSpent="";
+			double minutesSpent = 0;
+			double hoursSpent = 0;
+			double daysSpent = 0;
+			double secondsSpent = (double) (submitDate.getEpochSecond() - newUserTask.getStartDate().getEpochSecond());
+			if (secondsSpent > 60) {
+				minutesSpent = Math.floor(secondsSpent/60);
+			}
+			if (minutesSpent > 60) {
+				hoursSpent = Math.floor(minutesSpent/60);
+			}
+			if (hoursSpent > 24) {
+				daysSpent = Math.floor(hoursSpent/24);
+			}
+			
+		
+			if (daysSpent > 0) {
+				timeSpent = timeSpent + ((Long)Math.round(daysSpent)).toString() + "d ";
+			}
+			if (hoursSpent > 0) {
+				timeSpent = timeSpent + ((Long)Math.round(hoursSpent - daysSpent*24)).toString() + "h ";
+			}
+			if (minutesSpent > 0) {
+				timeSpent = timeSpent + ((Long)Math.round(minutesSpent - hoursSpent*60)).toString() + "m ";
+			}
+			if (secondsSpent > 0) {
+				timeSpent = timeSpent + ((Long)Math.round(secondsSpent - minutesSpent*60)).toString() + "s";
+			}
+							
+			newUserTask.setTimeSpent(timeSpent);
+			newUserTask.getUser().setLastActivity(Date.from(Instant.now()));
+			
+		// calculate user score
+			
+			Instant lastTaskAssingDate = newUserTask.getAssignDate();
+			Instant nextDay = lastTaskAssingDate.plusSeconds(24*60*60);
+			
+			// include tests from current task first
+			int allTestsSum=newUserTask.getOverallTestsCount();
+			int allPassedTestsSum=testsPassed;
+			
+			// then check for tasks assigned in same day as current task
+			List<UserTask> userTaskList = userTaskRepository.selectByLastAssingDate(lastTaskAssingDate, nextDay);
+			if(userTaskList.isEmpty()==false) {
+				for(UserTask iterator: userTaskList) {
+					allTestsSum = allTestsSum + iterator.getOverallTestsCount();
+					allPassedTestsSum = allPassedTestsSum + iterator.getTestsPassed();
+				}
+			}
+			String userScore = ((Integer) Math.round((allPassedTestsSum / allTestsSum)*100)).toString();
+			newUserTask.getUser().setLastScore(userScore + "%");
+			UserTask savedTask = userTaskRepository.save(newUserTask);
+			savedTask.setCompleted(true);
+			return new ResponseEntity<>(userTaskRepository.save(savedTask), HttpStatus.OK);
 		}
-		String userScore = ((Integer) Math.round((allPassedTestsSum / allTestsSum)*100)).toString();
-		user.setLastScore(userScore + "%");
-		userRepository.save(user);
-		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 	}
 	
 		

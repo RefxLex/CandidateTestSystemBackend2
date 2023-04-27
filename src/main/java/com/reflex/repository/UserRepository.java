@@ -47,6 +47,11 @@ public interface UserRepository extends JpaRepository<User,Long> {
 			  nativeQuery = true)
 	  List<User> selectByUserStatusAndUserName(@Param("name") String name, @Param("status") String status);
 	  
+	  @Query(
+			  value = "SELECT * FROM user_profile WHERE user_status = 'none' ",
+			  nativeQuery = true)
+	  List<User> selectByUserStatusNone();
+	  
 	  
 	  // For server side pagination
 	  /*

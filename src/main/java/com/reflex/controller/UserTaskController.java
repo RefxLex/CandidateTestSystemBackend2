@@ -31,8 +31,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.Task;
+import com.reflex.model.TaskTestInput;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
+import com.reflex.model.UserTaskResult;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.UserRepository;
@@ -92,11 +94,18 @@ public class UserTaskController {
 			if(user.isPresent()==false) {
 				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with userId=" + userId);
 			}
+			
 			user.get().setUserStatus((UserStatus.started).toString());
 			int overallTestsCount = task.get().getTaskTestInput().size();
 			Instant assignDate = Instant.now();
 			UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate, userTaskRequest.getLanguageId(),
-					userTaskRequest.getLanguageName(),overallTestsCount);
+					userTaskRequest.getLanguageName(), overallTestsCount);
+			
+			Set<TaskTestInput> tastTestInputSet = task.get().getTaskTestInput();
+			for(TaskTestInput testInput: tastTestInputSet) {
+				UserTaskResult userTaskResult = new UserTaskResult(testInput.getInput(), testInput.getOutput());
+				newUserTask.getUserTaskResult().add(userTaskResult);
+			}
 			userTaskList.add(newUserTask);
 		}
 		userTaskRepository.saveAll(userTaskList);
