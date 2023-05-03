@@ -39,11 +39,16 @@ public class JwtUtils {
   }
 
   public ResponseCookie generateJwtCookie(UserDetailsImpl userPrincipal) {
-	  
     //String jwt = generateTokenFromUsername(userPrincipal.getUsername());
-	String jwt = generateTokenFromUsername(userPrincipal.getEmail());
+	String jwt = generateTokenFromEmail(userPrincipal.getEmail());
     ResponseCookie cookie = ResponseCookie.from(jwtCookie, jwt).path("/api").maxAge(24 * 60 * 60).httpOnly(true).build();
     return cookie;
+  }
+  
+  public ResponseCookie generateJwtCookie(String email) {
+	String jwt = generateTokenFromEmail(email);
+	ResponseCookie cookie = ResponseCookie.from(jwtCookie, jwt).path("/api").maxAge(24 * 60 * 60).httpOnly(true).build();
+	return cookie;
   }
 
   public ResponseCookie getCleanJwtCookie() {
@@ -54,7 +59,7 @@ public class JwtUtils {
   public String getUserNameFromJwtToken(String token) {
     return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody().getSubject();
   }
-
+    
   public boolean validateJwtToken(String authToken) {
     try {
       Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(authToken);
@@ -74,10 +79,42 @@ public class JwtUtils {
     return false;
   }
   
+  public boolean JwtTokenIsExpired(String authToken) {
+	    try {
+	        Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(authToken);
+	        return false;
+	      } catch (SignatureException e) {
+	        logger.error("Invalid JWT signature: {}", e.getMessage());
+	        return false;
+	      } catch (MalformedJwtException e) {
+	        logger.error("Invalid JWT token: {}", e.getMessage());
+	        return false;
+	      } catch (ExpiredJwtException e) {
+	        logger.error("JWT token is expired: {}", e.getMessage());
+	        return true;
+	      } catch (UnsupportedJwtException e) {
+	        logger.error("JWT token is unsupported: {}", e.getMessage());
+	        return false;
+	      } catch (IllegalArgumentException e) {
+	        logger.error("JWT claims string is empty: {}", e.getMessage());
+	        return false;
+	      }
+	    
+  }
+  
   public String generateTokenFromUsername(String username) {
-
 	String token = Jwts.builder()
 	        .setSubject(username)
+	        .setIssuedAt(new Date())
+	        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+	        .signWith(SignatureAlgorithm.HS512, jwtSecret)
+	        .compact();
+    return token;
+  }
+  
+  public String generateTokenFromEmail(String email) {
+	String token = Jwts.builder()
+	        .setSubject(email)
 	        .setIssuedAt(new Date())
 	        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
 	        .signWith(SignatureAlgorithm.HS512, jwtSecret)

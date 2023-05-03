@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.reflex.mail.EmailUtil;
 import com.reflex.model.Role;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
@@ -46,6 +47,9 @@ import com.reflex.response.UserProfileResponse;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Properties;
+
+import jakarta.mail.Session;
 
 
 @CrossOrigin
@@ -204,6 +208,23 @@ public class UserController {
 	          roles.add(userRole);
 
 	    user.setRoles(roles);
+
+	    /*
+	    // sent email    
+	    String smtpHostServer = "smtp.example.com";
+	    String emailID = signUpRequest.getEmail();
+	    String subject = "Тестирование профессиональных навыков";
+	    String body = "Здравствуйте, вы были приглашены на отбор для вакансии в компанию, так как отправляли нам своё резюме." +
+	    "\nОтбор заключается в выполнении тестовых заданий на сайте https://cleverhire.com" +
+	    "\nДля входа в систему используйте эту электронную почту и пароль из данного письма." + "/nПароль: " + generatedPassword;
+	    
+	    Properties props = System.getProperties();
+	    props.put("mail.smtp.host", smtpHostServer);
+	    Session session = Session.getInstance(props, null);
+	    
+	    
+	    EmailUtil.sendEmail(session, emailID, subject, body); */
+	    
 	    return new ResponseEntity<>(userRepository.save(user), HttpStatus.CREATED);
 	  }
 	
