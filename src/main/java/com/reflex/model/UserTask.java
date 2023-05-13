@@ -69,6 +69,12 @@ public class UserTask {
 	@Column(nullable=false)
 	private boolean completed = false;
 	
+	@Column(nullable=false)
+	private boolean analyzed = false;
+	
+	@Column(nullable=true)
+	private String sonarKey ="";
+	
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_task_id")
 	private Set<UserTaskResult> userTaskResult = new HashSet<>();
@@ -216,6 +222,22 @@ public class UserTask {
 
 	public void setCompleted(boolean completed) {
 		this.completed = completed;
+	}
+	
+	public boolean isAnalyzed() {
+		return analyzed;
+	}
+
+	public void setAnalyzed(boolean analyzed) {
+		this.analyzed = analyzed;
+	}
+
+	public String getSonarKey() {
+		return sonarKey;
+	}
+
+	public void setSonarKey(String sonarKey) {
+		this.sonarKey = sonarKey;
 	}
 
 	@Override

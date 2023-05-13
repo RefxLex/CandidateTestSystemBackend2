@@ -31,7 +31,6 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.sonar.wsclient.SonarClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -85,25 +84,6 @@ public class CodeExecutionModuleController {
 	@Autowired
 	UserRepository userRepository;
 	
-	
-	@GetMapping("/sonar/version")
-	public ResponseEntity<?> checkSonar(){
-		SonarClient sonarClient = SonarClient.create("http://localhost:9000");
-		//String sonarEndpoint = "/api/server/version";
-		String sonarEndpoint = "/api/projects/create";
-		
-		Map<String, Object> sonarEndParams = new HashMap<>();
-		//sonarEndParams.put("login", "");
-		//sonarEndParams.put("password", "");
-		sonarEndParams.put("name", "BookShop");
-		sonarEndParams.put("project", "bookshop");
-		
-		//String sonarResponse = sonarClient.get(sonarEndpoint);
-		String sonarResponse = sonarClient.post(sonarEndpoint, sonarEndParams);
-		System.out.println(sonarResponse);
-		return new ResponseEntity<>(null, HttpStatus.OK);
-
-	}
 	
 	@GetMapping("/languages")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
