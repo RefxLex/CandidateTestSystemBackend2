@@ -1,16 +1,30 @@
 package com.reflex.request;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
+
+import jakarta.validation.constraints.NotEmpty;
 
 public class UserTaskRequest {
 	
-	@NotBlank
-	private String code;
+	@NotEmpty
+	private List<SolutionRequest> solution;
+	
+	private List<UnitTestRequest> unitTest;
 
-	public String getCode() {
-		return code;
+	public List<SolutionRequest> getSolution() {
+		return solution;
 	}
-	public void setCode(String code) {
-		this.code = code;
+
+	public void setSolution(List<SolutionRequest> solution) {
+		this.solution = solution;
 	}
+
+	public List<UnitTestRequest> getUnitTest() {
+		return unitTest;
+	}
+
+	public void setUnitTest(List<UnitTestRequest> unitTest) {
+		this.unitTest = unitTest;
+	}
+	
 }

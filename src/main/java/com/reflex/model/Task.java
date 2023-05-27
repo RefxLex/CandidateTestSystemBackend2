@@ -14,7 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name="tasks")
+@Table(name="tasks", uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "language_id" }) })
 public class Task {
 	
 	@Id
@@ -23,7 +23,7 @@ public class Task {
 	
 	@NotBlank
 	@Size(max=50)
-	@Column(nullable=false, unique=true)
+	@Column(nullable=false)
 	private String name;
 	
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
@@ -41,10 +41,30 @@ public class Task {
 	@Column(nullable=false, columnDefinition="TEXT")
 	private String description;
 	
+	@Column(name="language_id", nullable=false)
+	private int taskCodeLanguageId;
+	
+	@Column(name="language_name", nullable=false)
+	private String languageName;
+	
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="task_id")
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-	private Set<TaskTestInput> taskTestInput = new HashSet<>();
+	private Set<TaskReferenceSolution> refSolution = new HashSet<>();
+
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="task_id")
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+	private Set<TaskUnitTest> unitTest = new HashSet<>();
+	
+	/*
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="task_id")
+	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+	private Set<TaskTestInput> taskTestInput = new HashSet<>(); */
+	
+	//@Column(name="is_complex", nullable=false)
+	//private boolean isComplex;
 	
 	@Column(nullable=false)
 	private boolean deleted = false;
@@ -53,12 +73,14 @@ public class Task {
 		
 	}
 	
-	public Task(@NotBlank String name, Topic topic, TaskDifficulty taskDifficulty, String description){
+	public Task(String name, Topic topic, TaskDifficulty taskDifficulty, String description, int taskCodeLanguageId, String languageName){
 		
 		this.name = name;
 		this.topic = topic;
 		this.taskDifficulty = taskDifficulty;
 		this.description = description;
+		this.taskCodeLanguageId = taskCodeLanguageId;
+		this.languageName = languageName;
 	}
 
 	public Long getId() {
@@ -93,14 +115,6 @@ public class Task {
 		this.description = description;
 	}
 
-	public Set<TaskTestInput> getTaskTestInput() {
-		return taskTestInput;
-	}
-
-	public void setTaskTestInput(Set<TaskTestInput> taskTestInput) {
-		this.taskTestInput = taskTestInput;
-	}
-
 	public boolean isDeleted() {
 		return deleted;
 	}
@@ -116,11 +130,43 @@ public class Task {
 	public void setTaskDifficulty(TaskDifficulty taskDifficulty) {
 		this.taskDifficulty = taskDifficulty;
 	}
+	
+	public int getTaskCodeLanguageId() {
+		return taskCodeLanguageId;
+	}
+
+	public void setTaskCodeLanguageId(int taskCodeLanguageId) {
+		this.taskCodeLanguageId = taskCodeLanguageId;
+	}
+
+	public String getLanguageName() {
+		return languageName;
+	}
+
+	public void setLanguageName(String languageName) {
+		this.languageName = languageName;
+	}
+
+	public Set<TaskReferenceSolution> getRefSolution() {
+		return refSolution;
+	}
+
+	public void setRefSolution(Set<TaskReferenceSolution> refSolution) {
+		this.refSolution = refSolution;
+	}
+
+	public Set<TaskUnitTest> getUnitTest() {
+		return unitTest;
+	}
+
+	public void setUnitTest(Set<TaskUnitTest> unitTest) {
+		this.unitTest = unitTest;
+	}
 
 	@Override
 	public String toString() {
 		return "Task [id=" + id + ", name=" + name + ", topic=" + topic + ", taskDifficulty=" + taskDifficulty
-				+ ", description=" + description + ", taskTestInput=" + taskTestInput + ", deleted=" + deleted + "]";
+				+ ", description=" + description + ", deleted=" + deleted + "]";
 	}
 
 }

@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -56,6 +57,15 @@ import jakarta.mail.Session;
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
+	
+	@Value("${smtpDomain}")
+	private String smtpDomain;
+	
+	@Value("${webURL}")
+	private String webURL;
+	
+	@Value("${scheduleMeetingEmployeeEmail}")
+	private String scheduleMeetingEmployeeEmail;
 	
 	@Autowired
 	UserRepository userRepository;
@@ -128,49 +138,6 @@ public class UserController {
 	    return new ResponseEntity<>(users, HttpStatus.OK);	
     }
     
-    // For server side pagination
-    /*
-    @GetMapping("/filter")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> getUserByStatus(
-    		@RequestParam (required = false) String status,
-    		@RequestParam (defaultValue = "0") int page,
-    		@RequestParam (defaultValue = "10") int size,
-    		@RequestParam (defaultValue = "full_name") String sort,
-    		@RequestParam (defaultValue = "ASC") String direction){
-    	    	
-    	List<User> users = new ArrayList<User>();
-    	Pageable paging = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sort));
-    	Page<User> pageUsers;
-    	
-    	if(status==null) {
-    		pageUsers = userRepository.selectAllWithPagination(paging);
-    	}else {
-    		switch (status) {
-			case "pending":
-				pageUsers = userRepository.selectByUserStatusStAndSubWithPagination(paging);
-				break;
-			default:
-				pageUsers = userRepository.selectByUserStatusWithPagination(status, paging);
-				break;
-			}
-    	}
-    		
-    	try {
-	    	users = pageUsers.getContent();
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("users", users);
-	        response.put("currentPage", pageUsers.getNumber());
-	        response.put("totalItems", pageUsers.getTotalElements());
-	        response.put("totalPages", pageUsers.getTotalPages());
-	        return new ResponseEntity<>(response, HttpStatus.OK);
-    	}
-    	catch (Exception e) {
-    		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-    	}
-    	
-    }*/
-    
     @GetMapping("/admins")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<User>> findAdmins(){
@@ -209,20 +176,20 @@ public class UserController {
 
 	    user.setRoles(roles);
 
+	    
+	    // sent email
+	    // include in production testing
 	    /*
-	    // sent email    
-	    String smtpHostServer = "smtp.example.com";
+	    String smtpHostServer = smtpDomain;
 	    String emailID = signUpRequest.getEmail();
 	    String subject = "Тестирование профессиональных навыков";
 	    String body = "Здравствуйте, вы были приглашены на отбор для вакансии в компанию, так как отправляли нам своё резюме." +
-	    "\nОтбор заключается в выполнении тестовых заданий на сайте https://cleverhire.com" +
+	    "\nОтбор заключается в выполнении тестовых заданий на сайте "+ webURL +
 	    "\nДля входа в систему используйте эту электронную почту и пароль из данного письма." + "/nПароль: " + generatedPassword;
 	    
 	    Properties props = System.getProperties();
 	    props.put("mail.smtp.host", smtpHostServer);
 	    Session session = Session.getInstance(props, null);
-	    
-	    
 	    EmailUtil.sendEmail(session, emailID, subject, body); */
 	    
 	    return new ResponseEntity<>(userRepository.save(user), HttpStatus.CREATED);
@@ -272,6 +239,31 @@ public class UserController {
 		  User newUser = oldUser.get();
 		  newUser.setUserStatus(status);
 		  userRepository.save(newUser);
+		  
+		  // sent email
+		  // include in production testing
+		  /*
+		  String smtpHostServer = smtpDomain;
+		  String userEmail = newUser.getEmail();
+		  String subject = "Тестирование профессиональных навыков";
+		  String bodyForUser = "";
+		  String bodyForEmployee="";
+		  Properties props = System.getProperties();
+		  props.put("mail.smtp.host", smtpHostServer);
+		  Session session = Session.getInstance(props, null);
+		  if(newUser.getUserStatus()=="approved") {
+			  bodyForUser = "Здравствуйте, вы прошли на отбор для вакансии в компанию, вас должны пригласить на собеседование в течение трёх дней";
+			  bodyForEmployee = "Кандидату на вакансию" + newUser.getInfo() + "необходимо назначить собесодование." +
+			  "\n ФИО " + newUser.getFullName() +
+			  "\n эл.почта " + newUser.getEmail() + 
+			  "\n тел." + newUser.getPhone();
+			  EmailUtil.sendEmail(session, userEmail, subject, bodyForUser);
+			  EmailUtil.sendEmail(session, scheduleMeetingEmployeeEmail, subject, bodyForEmployee);
+		  }else if (newUser.getUserStatus()=="rejected") {
+			  bodyForUser = "Здравствуйте, к сожалению вы не прошли на отбор для вакансию в компанию";
+			  EmailUtil.sendEmail(session, userEmail, subject, bodyForUser);
+		  } */
+		  
 		  return new ResponseEntity<>(HttpStatus.OK);
 	  }
 	

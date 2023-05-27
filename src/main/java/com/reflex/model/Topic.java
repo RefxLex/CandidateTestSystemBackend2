@@ -13,7 +13,7 @@ public class Topic {
 	private Long id;
 	
 	@NotBlank
-	@Size(max=20)
+	@Size(max=70)
 	@Column(nullable=false, unique=true)
 	private String name;
 	

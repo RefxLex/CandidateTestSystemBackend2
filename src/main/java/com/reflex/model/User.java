@@ -13,7 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name="user_profile")
+@Table(name="user_profiles")
 public class User {
 
 	@Id

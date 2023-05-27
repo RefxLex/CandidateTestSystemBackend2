@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -55,6 +57,8 @@ import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.UserTask;
+import com.reflex.model.UserTaskSolution;
+import com.reflex.model.enums.SupportedLanguages;
 import com.reflex.repository.UserTaskRepository;
 import com.reflex.response.SonarTokenResponse;
 
@@ -100,10 +104,13 @@ public class CodeAnalysisController {
 		}
 		UserTask newUserTask = userTask.get();
 		
-		if(userTask.get().isAnalyzed()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already analyzed.");
+		// check language
+        Optional<SupportedLanguages> lang = SupportedLanguages.byNameIgnoreCase(userTask.get().getTask().getLanguageName());
+
+		
+		if( (userTask.get().isAnalyzed()) || (lang.isEmpty()) ) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already analyzed or language not supported");
 		}
-		else {
 			
 			RequestConfig requestConfig = RequestConfig.custom().
 				    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
@@ -244,7 +251,11 @@ public class CodeAnalysisController {
 	        }
 	        
 	        // add package
-	        String codeBase64 = userTask.get().getCode();
+	        List<UserTaskSolution> userTaskSolList = new ArrayList<>();
+	        for(UserTaskSolution iterator: userTask.get().getUserTaskSolution()) {
+	        	userTaskSolList.add(iterator);
+	        }
+	        String codeBase64 = userTaskSolList.get(0).getCode();
 	        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
 	        String codeDecoded = new String(decodedBytes);
 	        codeDecoded = "package com.cleverhire;\n" + codeDecoded;
@@ -282,8 +293,7 @@ public class CodeAnalysisController {
 	            	writeXml(doc, output);
 	            }
 	
-		   } catch (ParserConfigurationException | SAXException
-		           | IOException | TransformerException e) {
+		   } catch (ParserConfigurationException | SAXException | IOException | TransformerException e) {
 		       e.printStackTrace();
 		   }
 	        
@@ -319,7 +329,6 @@ public class CodeAnalysisController {
 		    newUserTask.setAnalyzed(true);
 		    userTaskRepository.save(newUserTask);
         
-		}
 		return new ResponseEntity<>(null, HttpStatus.OK);
 		
 	}

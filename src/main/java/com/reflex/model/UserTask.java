@@ -36,9 +36,6 @@ public class UserTask {
 	@Column(name="assign_date", nullable=false, columnDefinition="timestamptz")
 	private Instant assignDate;
 	
-	@Column(nullable=true, columnDefinition="TEXT")
-	private String code;
-	
 	@Column(name="start_date", nullable=true, columnDefinition="timestamptz")
 	private Instant startDate;
 	
@@ -51,12 +48,6 @@ public class UserTask {
 	@Column(nullable=true, columnDefinition="TEXT")
 	private String comment;
 	
-	@Column(name="language_id", nullable=false)
-	private int taskCodeLanguageId;
-	
-	@Column(name="language_name", nullable=false)
-	private String languageName;
-	
 	@Column(name="tests_passed", nullable=false)
 	private Integer testsPassed;
 	
@@ -64,7 +55,13 @@ public class UserTask {
 	private Integer testsFailed;
 	
 	@Column(name="overall_test_count", nullable=false)
-	private int overallTestsCount;
+	private Integer overallTestsCount;
+	
+	@Column(nullable=true)
+	private String compilationResult;
+	
+	@Column(name="result_report", columnDefinition="TEXT", nullable=true)
+	private String resultReport;
 	
 	@Column(nullable=false)
 	private boolean completed = false;
@@ -75,22 +72,29 @@ public class UserTask {
 	@Column(nullable=true)
 	private String sonarKey ="";
 	
+	/*
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_task_id")
-	private Set<UserTaskResult> userTaskResult = new HashSet<>();
+	private Set<UserTaskResult> userTaskResult = new HashSet<>(); */
+	
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="user_task_id")
+	private Set<UserTaskUnitTest> userUnitTest = new HashSet<>();
+	
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+	@JoinColumn(name="user_task_id")
+	private Set<UserTaskSolution> userTaskSolution = new HashSet<>();
 	
 	public UserTask() {
 		
 	}
 
-	public UserTask(User user, Task task, Instant assignDate, int taskCodeLanguageId, String languageName, int overallTestsCount) {
+	public UserTask(User user, Task task, Instant assignDate) {
 		
 		this.user = user;
 		this.task = task;
 		this.assignDate = assignDate;
-		this.taskCodeLanguageId = taskCodeLanguageId;
-		this.languageName = languageName;
-		this.overallTestsCount = overallTestsCount;
+		this.overallTestsCount = 0;
 		this.testsPassed = 0;
 		this.testsFailed = 0;
 		
@@ -120,14 +124,6 @@ public class UserTask {
 		this.assignDate = assignDate;
 	}
 
-	public String getCode() {
-		return code;
-	}
-
-	public void setCode(String code) {
-		this.code = code;
-	}
-
 	public Instant getStartDate() {
 		return startDate;
 	}
@@ -151,14 +147,6 @@ public class UserTask {
 	public void setComment(String comment) {
 		this.comment = comment;
 	}
-
-	public int getTaskCodeLanguageId() {
-		return taskCodeLanguageId;
-	}
-
-	public void setTaskCodeLanguageId(int taskCodeLanguageId) {
-		this.taskCodeLanguageId = taskCodeLanguageId;
-	}
 	
 	public User getUser() {
 		return user;
@@ -166,30 +154,6 @@ public class UserTask {
 
 	public void setUser(User user) {
 		this.user = user;
-	}
-
-	public Set<UserTaskResult> getUserTaskResult() {
-		return userTaskResult;
-	}
-
-	public void setUserTaskResult(Set<UserTaskResult> userTaskResult) {
-		this.userTaskResult = userTaskResult;
-	}
-	
-	public int getOverallTestsCount() {
-		return overallTestsCount;
-	}
-
-	public void setOverallTestsCount(int overallTestsCount) {
-		this.overallTestsCount = overallTestsCount;
-	}
-	
-	public String getLanguageName() {
-		return languageName;
-	}
-
-	public void setLanguageName(String languageName) {
-		this.languageName = languageName;
 	}
 
 	public Integer getTestsFailed() {
@@ -239,12 +203,51 @@ public class UserTask {
 	public void setSonarKey(String sonarKey) {
 		this.sonarKey = sonarKey;
 	}
+	
+	public Set<UserTaskUnitTest> getUserUnitTest() {
+		return userUnitTest;
+	}
+
+	public void setUserUnitTest(Set<UserTaskUnitTest> userUnitTest) {
+		this.userUnitTest = userUnitTest;
+	}
+	
+	public Set<UserTaskSolution> getUserTaskSolution() {
+		return userTaskSolution;
+	}
+
+	public void setUserTaskSolution(Set<UserTaskSolution> userTaskSolution) {
+		this.userTaskSolution = userTaskSolution;
+	}
+	
+	public String getResultReport() {
+		return resultReport;
+	}
+
+	public void setResultReport(String resultReport) {
+		this.resultReport = resultReport;
+	}
+	
+	public Integer getOverallTestsCount() {
+		return overallTestsCount;
+	}
+
+	public void setOverallTestsCount(Integer overallTestsCount) {
+		this.overallTestsCount = overallTestsCount;
+	}
+
+	public String getCompilationResult() {
+		return compilationResult;
+	}
+
+	public void setCompilationResult(String compilationResult) {
+		this.compilationResult = compilationResult;
+	}
 
 	@Override
 	public String toString() {
-		return "UserTask [id=" + id + ", user=" + user + ", task=" + task + ", assignDate=" + assignDate + ", code="
-				+ code + ", startDate=" + startDate + ", submitDate=" + submitDate + ", comment=" + comment
-				+ ", taskCodeLanguageId=" + taskCodeLanguageId + ", userTaskResult=" + userTaskResult + "]";
+		return "UserTask [id=" + id + ", user=" + user + ", task=" + task + ", assignDate=" + assignDate + ", startDate=" + startDate 
+				+ ", submitDate=" + submitDate + ", comment=" + comment + "]";
 	}
 	
 }

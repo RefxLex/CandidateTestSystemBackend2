@@ -2,8 +2,8 @@ package com.reflex.request;
 
 
 import java.util.List;
+
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -21,8 +21,17 @@ public class TaskRequest {
 	
 	private String description;
 	
-	@NotEmpty
-	private List<TestInputRequest> taskTestInput;
+	@NotNull
+	private int taskCodeLanguageId;
+	
+	@NotBlank
+	private String languageName;
+	
+	private List<UnitTestRequest> unitTest;
+	
+	private List<SolutionRequest> refSolution;
+	
+	//private List<TestInputRequest> taskTestInput;
 
 	public String getName() {
 		return name;
@@ -48,20 +57,44 @@ public class TaskRequest {
 		this.description = description;
 	}
 
-	public List<TestInputRequest> getTaskTestInput() {
-		return taskTestInput;
-	}
-
-	public void setTaskTestInput(List<TestInputRequest> taskTestInput) {
-		this.taskTestInput = taskTestInput;
-	}
-
 	public Long getDifficultyId() {
 		return difficultyId;
 	}
 
 	public void setDifficultyId(Long difficultyId) {
 		this.difficultyId = difficultyId;
+	}
+
+	public int getTaskCodeLanguageId() {
+		return taskCodeLanguageId;
+	}
+
+	public void setTaskCodeLanguageId(int taskCodeLanguageId) {
+		this.taskCodeLanguageId = taskCodeLanguageId;
+	}
+
+	public String getLanguageName() {
+		return languageName;
+	}
+
+	public void setLanguageName(String languageName) {
+		this.languageName = languageName;
+	}
+
+	public List<UnitTestRequest> getUnitTest() {
+		return unitTest;
+	}
+
+	public void setUnitTest(List<UnitTestRequest> unitTest) {
+		this.unitTest = unitTest;
+	}
+
+	public List<SolutionRequest> getRefSolution() {
+		return refSolution;
+	}
+
+	public void setRefSolution(List<SolutionRequest> refSolution) {
+		this.refSolution = refSolution;
 	}
 	
 }
