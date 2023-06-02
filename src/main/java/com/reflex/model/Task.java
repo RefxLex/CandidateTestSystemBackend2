@@ -57,15 +57,6 @@ public class Task {
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	private Set<TaskUnitTest> unitTest = new HashSet<>();
 	
-	/*
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-	@JoinColumn(name="task_id")
-	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-	private Set<TaskTestInput> taskTestInput = new HashSet<>(); */
-	
-	//@Column(name="is_complex", nullable=false)
-	//private boolean isComplex;
-	
 	@Column(nullable=false)
 	private boolean deleted = false;
 

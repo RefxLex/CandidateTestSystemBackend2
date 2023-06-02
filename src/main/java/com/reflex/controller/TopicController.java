@@ -71,18 +71,4 @@ public class TopicController {
 		return new ResponseEntity<>(topicRepository.save(newTopic), HttpStatus.OK);
 	}
 	
-	// soft delete
-	/*
-	@PutMapping("/delete/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<?> deleteTopic(@PathVariable("id") Long id){
-		if(topicRepository.existsById(id)==false) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + id);
-		}
-		Optional<Topic> oldTopic = topicRepository.findById(id);
-		Topic newTopic = oldTopic.get();
-		newTopic.setDeleted(true);
-		return new ResponseEntity<>(topicRepository.save(newTopic), HttpStatus.OK);
-	} */
-	
 }

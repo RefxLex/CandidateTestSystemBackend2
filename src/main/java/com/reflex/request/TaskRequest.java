@@ -20,10 +20,7 @@ public class TaskRequest {
 	private Long difficultyId;
 	
 	private String description;
-	
-	@NotNull
-	private int taskCodeLanguageId;
-	
+		
 	@NotBlank
 	private String languageName;
 	
@@ -31,8 +28,6 @@ public class TaskRequest {
 	
 	private List<SolutionRequest> refSolution;
 	
-	//private List<TestInputRequest> taskTestInput;
-
 	public String getName() {
 		return name;
 	}
@@ -63,14 +58,6 @@ public class TaskRequest {
 
 	public void setDifficultyId(Long difficultyId) {
 		this.difficultyId = difficultyId;
-	}
-
-	public int getTaskCodeLanguageId() {
-		return taskCodeLanguageId;
-	}
-
-	public void setTaskCodeLanguageId(int taskCodeLanguageId) {
-		this.taskCodeLanguageId = taskCodeLanguageId;
 	}
 
 	public String getLanguageName() {

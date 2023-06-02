@@ -72,15 +72,6 @@ public class UserTask {
 	@Column(nullable=true)
 	private String sonarKey ="";
 	
-	/*
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-	@JoinColumn(name="user_task_id")
-	private Set<UserTaskResult> userTaskResult = new HashSet<>(); */
-	
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-	@JoinColumn(name="user_task_id")
-	private Set<UserTaskUnitTest> userUnitTest = new HashSet<>();
-	
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	@JoinColumn(name="user_task_id")
 	private Set<UserTaskSolution> userTaskSolution = new HashSet<>();
@@ -202,14 +193,6 @@ public class UserTask {
 
 	public void setSonarKey(String sonarKey) {
 		this.sonarKey = sonarKey;
-	}
-	
-	public Set<UserTaskUnitTest> getUserUnitTest() {
-		return userUnitTest;
-	}
-
-	public void setUserUnitTest(Set<UserTaskUnitTest> userUnitTest) {
-		this.userUnitTest = userUnitTest;
 	}
 	
 	public Set<UserTaskSolution> getUserTaskSolution() {

@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -38,6 +39,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -64,21 +66,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.Task;
-//import com.reflex.model.TaskTestInput;
 import com.reflex.model.TaskUnitTest;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
-//import com.reflex.model.UserTaskResult;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.UserRepository;
 import com.reflex.repository.UserTaskRepository;
 import com.reflex.request.CreateUserTaskRequest;
 import com.reflex.request.SolutionRequest;
+import com.reflex.request.TestLaunchUserTaskRequest;
 import com.reflex.request.UnitTestRequest;
 import com.reflex.request.UpdateCommentRequest;
-import com.reflex.request.UserTaskRequest;
-//import com.reflex.response.LanguageResponse;
+import com.reflex.request.CompleteUserTaskRequest;
 import com.reflex.model.UserTaskSolution;
 
 import jakarta.transaction.Transactional;
@@ -135,14 +135,6 @@ public class UserTaskController {
 			user.get().setUserStatus((UserStatus.started).toString());
 			Instant assignDate = Instant.now();
 			UserTask newUserTask = new UserTask(user.get(), task.get(), assignDate);
-			
-			/*	judge integration
-			overallTestsCount = task.get().getTaskTestInput().size();
-			Set<TaskTestInput> tastTestInputSet = task.get().getTaskTestInput();
-			for(TaskTestInput testInput: tastTestInputSet) {
-				UserTaskResult userTaskResult = new UserTaskResult(testInput.getInput(), testInput.getOutput());
-				newUserTask.getUserTaskResult().add(userTaskResult);
-			} */
 			userTaskList.add(newUserTask);
 		}
 		userTaskRepository.saveAll(userTaskList);
@@ -156,9 +148,12 @@ public class UserTaskController {
 		if(oldUserTask.isPresent()==false) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No userTask found with id=" + userTaskId);
 		}
-		UserTask newUserTask = oldUserTask.get();
-		newUserTask.setStartDate(Instant.now());
-		return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
+		if(oldUserTask.get().getStartDate()==null) {
+			UserTask newUserTask = oldUserTask.get();
+			newUserTask.setStartDate(Instant.now());
+			userTaskRepository.save(newUserTask);
+		}
+		return new ResponseEntity<>(null, HttpStatus.OK);
 	}
 	
 	@PutMapping("/{id}")
@@ -288,7 +283,7 @@ public class UserTaskController {
 	}
 	
 	@PostMapping("/test-launch")
-	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody UserTaskRequest userTaskRequest){
+	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
 		// define OS
 		String fs = System.getProperty("file.separator");
     	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
@@ -387,6 +382,7 @@ public class UserTaskController {
         }
         
       // compile classes      
+        // compile src
 	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch" + fs + projectKey));
 	    if (isWindows) {
 	    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
@@ -419,6 +415,7 @@ public class UserTaskController {
 	    	return new ResponseEntity<>(response, HttpStatus.OK);
 	    }
 	    
+	    // compile test
 	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch" + fs + projectKey));
 	    if (isWindows) {
 	    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "test_classes" + " -cp %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs 
@@ -436,8 +433,8 @@ public class UserTaskController {
 	    errorCode = Integer.parseInt(testCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
 	    if(errorCode == 1) {
 	        Map<String, Object> response = new HashMap<>();
-	        String encodedMainCompileResult = Base64.getEncoder().encodeToString(testCompileResult.getBytes(StandardCharsets.ISO_8859_1));
-	        response.put("result", encodedMainCompileResult);
+	        String encodedTestCompileResult = Base64.getEncoder().encodeToString(testCompileResult.getBytes(StandardCharsets.ISO_8859_1));
+	        response.put("result", encodedTestCompileResult);
 	        
 	  	  	// delete created folder
 		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch"));
@@ -484,7 +481,7 @@ public class UserTaskController {
 	}
 	
 	@PutMapping("/complete/{id}")
-	public ResponseEntity<?> runAllUnitTests(@PathVariable("id") Long userTaskId, @Valid @RequestBody UserTaskRequest userTaskRequest){
+	public ResponseEntity<?> runAllUnitTests(@PathVariable("id") Long userTaskId, @Valid @RequestBody CompleteUserTaskRequest userTaskRequest){
 		
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
 		if(userTask.isEmpty()) {
@@ -514,103 +511,17 @@ public class UserTaskController {
 	    // create project folder
 		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects"));
 		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "mkdir " + projectKey);
+		    	processBuilder.command("cmd.exe", "/c", "mkdir " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
+		    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
+		    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
 		    } 
 		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "mkdir " + projectKey);
+		    	processBuilder.command("sh", "-c", "mkdir " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
+		    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
+		    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
 		    }
 		    runProcess(processBuilder);
 	    
-	     // init maven project
-	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey));
-	        String mvnInitCommand = "mvn archetype:generate -DgroupId=com.cleverhire" + " -DartifactId=java_project"+ projectKey 
-	        		+ " -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false";
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", mvnInitCommand);
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", mvnInitCommand);
-	    	}	        
-	    	runProcess(processBuilder);
-	        
-	     // remove AppTest.java
-	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-	        		+ "java_project"+ projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire"));
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "del AppTest.java");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "rm AppTest.java");
-	    	}
-	    	runProcess(processBuilder);
-	        
-	     // edit pom.xml
-	        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-	        try (InputStream is = new FileInputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-	        		+ "java_project"+ projectKey + fs + "pom.xml")) {
-	            DocumentBuilder db = dbf.newDocumentBuilder();
-	            Document doc = db.parse(is);
-	            
-	            // add properties 
-	            Node project = doc.getFirstChild();
-	            Element properties = doc.createElement("properties");
-	            Element encoding = doc.createElement("project.build.sourceEncoding");
-	            Element mavenComplierSource = doc.createElement("maven.compiler.source");
-	            Element target = doc.createElement("maven.compiler.target");
-	            encoding.setTextContent("UTF-8");
-	            mavenComplierSource.setTextContent("17");
-	            target.setTextContent("17");
-	            properties.appendChild(encoding);
-	            properties.appendChild(mavenComplierSource);
-	            properties.appendChild(target);
-	            project.appendChild(properties);
-	            
-	            // update to JUnit 5
-	            Node jUnitGroupId = doc.getElementsByTagName("groupId").item(1);
-	            Node jUnitArtifactId = doc.getElementsByTagName("artifactId").item(1);
-	            Node jUnitVersion = doc.getElementsByTagName("version").item(1);
-	            jUnitGroupId.setTextContent("org.junit.jupiter");
-	            jUnitArtifactId.setTextContent("junit-jupiter-api");
-	            jUnitVersion.setTextContent("5.9.2");
-	            
-	            // add maven plugins
-	            Element build = doc.createElement("build");
-	            Element pluginManagement = doc.createElement("pluginManagement");
-	            Element plugins = doc.createElement("plugins");
-	            Element compilerPlugin = doc.createElement("plugin");
-	            Element compilerPluginArtifactId = doc.createElement("artifactId");
-	            Element compilerPluginVersion = doc.createElement("version");
-	            Element sureFirePlugin = doc.createElement("plugin");
-	            Element sureFirePluginArtifactId = doc.createElement("artifactId");
-	            Element sureFirePluginVersion = doc.createElement("version");
-	            compilerPluginArtifactId.setTextContent("maven-compiler-plugin");
-	            compilerPluginVersion.setTextContent("3.8.0");
-	            sureFirePluginArtifactId.setTextContent("maven-surefire-plugin");
-	            sureFirePluginVersion.setTextContent("3.1.0");
-	            compilerPlugin.appendChild(compilerPluginArtifactId);
-	            compilerPlugin.appendChild(compilerPluginVersion);
-	            sureFirePlugin.appendChild(sureFirePluginArtifactId);
-	            sureFirePlugin.appendChild(sureFirePluginVersion);
-	            plugins.appendChild(compilerPlugin);
-	            plugins.appendChild(sureFirePlugin);
-	            pluginManagement.appendChild(plugins);
-	            build.appendChild(pluginManagement);
-	            project.appendChild(build);
-	            	           
-	            try (FileOutputStream output = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs 
-	            		+ projectKey + fs + "java_project"+ projectKey + fs + "pom.xml")) {           
-	        		TransformerFactory transformerFactory = TransformerFactory.newInstance();
-	        		Transformer transformer = transformerFactory.newTransformer();
-	        		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-	        		transformer.setOutputProperty(OutputKeys.STANDALONE, "no");
-	        		DOMSource source = new DOMSource(doc);
-	        		StreamResult result = new StreamResult(output);
-	        		transformer.transform(source, result);
-	            }
-	        } catch (ParserConfigurationException | SAXException | IOException | TransformerException e) {
-		       e.printStackTrace();
-		       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-	        }
 	        
 	      // create main files	        
 	        for(UserTaskSolution iterator: newUserTask.getUserTaskSolution()) {
@@ -630,8 +541,7 @@ public class UserTaskController {
 		        FileOutputStream fos;
 				try {
 					fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-							+ "java_project"+ projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire"
-							+ fs + className +".java");
+							+ "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
 					fos.write(codeDecoded.getBytes());
 			        fos.flush();
 			        fos.close(); 
@@ -640,8 +550,9 @@ public class UserTaskController {
 					throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 				}
 	        }
-	        
+	                
 	     // create test files
+	        List<String> testClassesNameList = new ArrayList<>();
 	        for(TaskUnitTest iterator: newUserTask.getTask().getUnitTest()) {
 	        	
 		        // add package
@@ -654,13 +565,13 @@ public class UserTaskController {
 		        int startIndex = codeDecoded.indexOf("class");
 		        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
 		        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
+		        testClassesNameList.add(className);
 
 		        // create className.java
 		        FileOutputStream fos;
 				try {
 					fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-							+ "java_project"+ projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire"
-							+ fs + className +".java");
+							+ "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
 					fos.write(codeDecoded.getBytes());
 			        fos.flush();
 			        fos.close(); 
@@ -670,47 +581,106 @@ public class UserTaskController {
 				}
 	        }
 	        
-	    // run maven test
-	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-	        		+ "java_project"+ projectKey));
-	        String mvnTestCommand = "mvn test";
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", mvnTestCommand);
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", mvnTestCommand);
-	    	}
-	    	
-	    	String testResult=runProcess(processBuilder);
-	        String encodedtestResult = Base64.getEncoder().encodeToString(testResult.getBytes(StandardCharsets.ISO_8859_1));
-	        newUserTask.setResultReport(encodedtestResult);
-	        
-	     // parse test results
-	        Integer overallTestCount = 0;
-	        if(testResult.contains("COMPILATION ERROR")) {
-	        	newUserTask.setCompilationResult("FAIL");
+	     // compile classes
+	        boolean compileIsOk = true;
+	        // compile src
+		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey));
+		    if (isWindows) {
+		    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
+		    			+ "java_project" + projectKey + fs + "*.java");
+		    } 
+		    else if (isLinux){
+		    	processBuilder.command("sh", "-c", "javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
+		    			+ "java_project" + projectKey + fs + "*.java");
+		    }
+		    String mainCompileResult = runProcess(processBuilder);
+		    
+		    // check compile errors
+		    int errorCodeIndex = mainCompileResult.indexOf("error code");
+		    Integer errorCode = Integer.parseInt(mainCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
+		    if(errorCode == 1) {
+		        String encodedMainCompileResult = Base64.getEncoder().encodeToString(mainCompileResult.getBytes(StandardCharsets.ISO_8859_1));
+		        compileIsOk = false;
 	        	// number of tests unknown, set failure rate to 100%
-	        	overallTestCount = 1;
-	        	newUserTask.setOverallTestsCount(overallTestCount);
-	        }
-	        else {
-		     	Integer testsPassed=0;
-		     	Integer testsFailed=0;
-		     	int resultsStartIndex = testResult.indexOf("Results");
-		     	String total = testResult.substring(resultsStartIndex, resultsStartIndex + 80);
-		     	int testsRunIndex = total.indexOf("Tests run");
-		     	int testsFailIndex = total.indexOf("Failures");
-		     	String testsRunSubstr = total.substring(testsRunIndex + 11, testsRunIndex + 12);
-		     	String testsFailSubstr = total.substring(testsFailIndex + 10, testsFailIndex + 11);
-		     	overallTestCount = Integer.parseInt(testsRunSubstr);
-		     	testsFailed = Integer.parseInt(testsFailSubstr);
-		     	testsPassed = overallTestCount - testsFailed;
-		     	newUserTask.setTestsPassed(testsPassed);
-		     	newUserTask.setTestsFailed(testsFailed);
-		     	newUserTask.setOverallTestsCount(overallTestCount);
-		     	newUserTask.setCompilationResult("OK");
-	        }
-	     				     			
+		     	newUserTask.setTestsPassed(0);
+		     	newUserTask.setTestsFailed(1);
+	        	newUserTask.setOverallTestsCount(1);
+	        	newUserTask.setCompilationResult("FAIL");
+	        	newUserTask.setResultReport(encodedMainCompileResult);
+		    }
+		    
+		    // compile test
+		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey));
+		    if (isWindows) {
+		    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "test_classes" + " -cp %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs 
+		    			+ "lib" + fs + "*;target" + fs + "classes" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" 
+		    			+ projectKey + fs + "*.java");
+		    } 
+		    else if (isLinux){
+		    	processBuilder.command("sh", "-c", "javac -d target"+ fs + "classes" + fs + "test_classes" + " -cp ~" + fs + "cadidate_test_system_projects" + fs
+		    			+ "lib" + fs + "*;target" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + "*.java");
+		    }
+		    String testCompileResult = runProcess(processBuilder);
+		    
+		    // check compile errors
+		    errorCodeIndex = testCompileResult.indexOf("error code");
+		    errorCode = Integer.parseInt(testCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
+		    if(errorCode == 1) {
+		        String encodedTestCompileResult = Base64.getEncoder().encodeToString(testCompileResult.getBytes(StandardCharsets.ISO_8859_1));
+		        compileIsOk = false;
+	        	// number of tests unknown, set failure rate to 100%
+		     	newUserTask.setTestsPassed(0);
+		     	newUserTask.setTestsFailed(1);
+	        	newUserTask.setOverallTestsCount(1);
+	        	newUserTask.setCompilationResult("FAIL");
+	        	newUserTask.setResultReport(encodedTestCompileResult);
+
+		    }
+		    
+		    if(compileIsOk) {
+			    	
+			// run unit tests
+			    String testsResult="";
+			    List<String> testResultList = new ArrayList<>();
+			    for(String testClassName: testClassesNameList) {
+				    if (isWindows) {
+				    	processBuilder.command("cmd.exe", "/c", "java -jar" + " %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
+				    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target" + fs + "classes;target" + fs + "test_classes" 
+				    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
+				    } 
+				    else if (isLinux){
+				    	processBuilder.command("sh", "-c", "java -jar" + " ~" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
+				    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target"  + fs + "classes;target" + fs + "test_classes" 
+				    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
+				    }
+				    testsResult = runProcess(processBuilder);
+				    testResultList.add(testsResult);
+			    }                      
+	 
+		     // parse test results
+			    Integer testsPassed=0;
+			    Integer testsFailed=0;
+			    Integer overallTestCount = 0;
+			    int foundIndex = 0;
+			    int failedIndex = 0;
+			    int successfulIndex = 0;
+			    String encodedTestResult="";
+			    for(String iterator: testResultList) {
+			    	foundIndex = iterator.indexOf("tests found");
+			    	failedIndex = iterator.indexOf("tests failed");
+			    	successfulIndex = iterator.indexOf("tests successful");
+			    	overallTestCount = overallTestCount + Integer.parseInt(iterator.substring(foundIndex-2,foundIndex-1));
+			    	testsFailed = testsFailed + Integer.parseInt(iterator.substring(failedIndex-2,failedIndex-1));
+			    	testsPassed = testsPassed + Integer.parseInt(iterator.substring(successfulIndex-2,successfulIndex-1));
+			    	encodedTestResult = encodedTestResult + Base64.getEncoder().encodeToString(iterator.getBytes(StandardCharsets.ISO_8859_1));
+			    }
+			    newUserTask.setTestsPassed(testsPassed);
+			    newUserTask.setTestsFailed(testsFailed);
+			    newUserTask.setOverallTestsCount(overallTestCount);
+			    newUserTask.setCompilationResult("OK");
+			    newUserTask.setResultReport(encodedTestResult);
+		    }
+	    
 	     // check if user done all tasks
 	     	boolean tasksDone=true;
 	     	List<UserTask> userTasks = userTaskRepository.selectByUserId(newUserTask.getUser().getId());
@@ -722,8 +692,7 @@ public class UserTaskController {
 	     	if (tasksDone) {
 	     		newUserTask.getUser().setUserStatus((UserStatus.submitted).toString());
 	     	}
-	     			
-	     			
+	     				
 	     // calc time spent
 			Instant submitDate = Instant.now();
 			newUserTask.setSubmitDate(submitDate);
@@ -776,7 +745,7 @@ public class UserTaskController {
 	     	}
 	     	String userScore = ((Integer) Math.round((allPassedTestsSum / allTestsSum)*100)).toString();
 	     	newUserTask.getUser().setLastScore(userScore + "%");
-	     	newUserTask.setCompleted(true);	        
+	     	newUserTask.setCompleted(true);
 			return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 		}
 	}
@@ -792,17 +761,17 @@ public class UserTaskController {
             String error=null;
             while ( ((line = reader.readLine()) != null) || ((error = errorReader.readLine()) != null) ) {
             	if (line != null) {
-                	result = result + "\n" + line;
+                	result = result + "\n" + "~" + line;
                     System.out.println(line);
             	}
             	if (error!=null) {
-            		errorMsg = errorMsg + "\n" + error;
+            		errorMsg = errorMsg + "\n" + "~" + error;
                     System.out.println(error);
             	}
             }
             int exitCode = process.waitFor();
             System.out.println("\nExited with error code : " + exitCode);
-            result = result + errorMsg + "\nExited with error code : " + exitCode;
+            result = result + errorMsg + "\n ~ Exited with error code : " + exitCode;
             return result;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

@@ -1,7 +1,9 @@
 package com.reflex.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -63,10 +65,7 @@ public class TaskController {
 	
 	@Autowired
 	TaskDifficultyRepository taskDifficultyRepository;
-	
-	//@Autowired
-	//TaskTestInputRepository taskTestInputRepository;
-	
+		
 	@GetMapping("/{id}")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<Task> getTaskById(@PathVariable ("id") Long id){
@@ -75,6 +74,11 @@ public class TaskController {
         return new ResponseEntity<>(task.get(), HttpStatus.OK);
 	}
 	
+	@GetMapping("/languages")
+	public ResponseEntity<?> getSupportedLanguages(){
+		List<SupportedLanguages> langList = Arrays.asList(SupportedLanguages.class.getEnumConstants());
+        return new ResponseEntity<>(langList, HttpStatus.OK);
+	}
 	
 	@GetMapping("/filter")
     @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
@@ -123,12 +127,20 @@ public class TaskController {
         Optional<TaskDifficulty> difficulty = Optional.ofNullable(taskDifficultyRepository.findById(taskRequest.getDifficultyId()).orElseThrow(() ->
         new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with id=" + taskRequest.getDifficultyId() )));
         
+        Optional<SupportedLanguages> lang = SupportedLanguages.byNameIgnoreCase(taskRequest.getLanguageName());
+        int langCode = 0;
+        if(lang.isPresent()) {
+        	langCode = lang.get().getCode();
+        }else {
+        	throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        
         Task task = new Task(
         		taskRequest.getName(),
         		topic.get(),
         		difficulty.get(),
         		taskRequest.getDescription(),
-        		taskRequest.getTaskCodeLanguageId(),
+        		langCode,
         		taskRequest.getLanguageName());
 
         List<UnitTestRequest> unitTestList = taskRequest.getUnitTest();
@@ -141,16 +153,7 @@ public class TaskController {
         	TaskReferenceSolution refSolution = new TaskReferenceSolution(iterator.getCode());
         	task.getRefSolution().add(refSolution);
         }
-        
-        	/*	judge integration
-	        List<TestInputRequest> testInputList = taskRequest.getTaskTestInput();
-	        for(int i=0; i<testInputList.size(); i++) {
-	        	String input = testInputList.get(i).getInput();
-	        	String output = testInputList.get(i).getOutput();
-	        	TaskTestInput testInput = new TaskTestInput(input, output);
-	        	task.getTaskTestInput().add(testInput);
-	        } */
-        
+             
         Task savedTask = null;
         try {
         	savedTask = taskRepository.save(task);
@@ -176,14 +179,21 @@ public class TaskController {
         Optional<TaskDifficulty> difficulty = Optional.ofNullable(taskDifficultyRepository.findById(taskRequest.getDifficultyId()).orElseThrow(() ->
         new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with id=" + taskRequest.getDifficultyId() )));
         
+        Optional<SupportedLanguages> lang = SupportedLanguages.byNameIgnoreCase(taskRequest.getLanguageName());
+        int langCode = 0;
+        if(lang.isPresent()) {
+        	langCode = lang.get().getCode();
+        }else {
+        	throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        
 	    newTask.setName(taskRequest.getName());
 	    newTask.setTopic(topic.get());
 	    newTask.setTaskDifficulty(difficulty.get());
 	    newTask.setDescription(taskRequest.getDescription());
-	    newTask.setTaskCodeLanguageId(taskRequest.getTaskCodeLanguageId());
+	    newTask.setTaskCodeLanguageId(langCode);
 	    newTask.setLanguageName(taskRequest.getLanguageName());
         
-
         newTask.getRefSolution().clear();
         newTask.getUnitTest().clear();
         List<UnitTestRequest> unitTestList = taskRequest.getUnitTest();
@@ -196,17 +206,7 @@ public class TaskController {
         	TaskReferenceSolution refSolution = new TaskReferenceSolution(iterator.getCode());
         	newTask.getRefSolution().add(refSolution);
         }
-        
-        	/*	judge integration
-	        newTask.getTaskTestInput().clear();
-	        List<TestInputRequest> testInputList = taskRequest.getTaskTestInput();
-	        for(int i=0; i<testInputList.size(); i++) {
-	        	String input = testInputList.get(i).getInput();
-	        	String output = testInputList.get(i).getOutput();
-	        	TaskTestInput testInput = new TaskTestInput(input, output);
-	        	newTask.getTaskTestInput().add(testInput);
-	        } */
-        
+              
 	    return new ResponseEntity<>(taskRepository.save(newTask), HttpStatus.OK);
 	}
 	

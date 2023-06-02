@@ -74,11 +74,7 @@ public class AuthController {
 
 	  @PostMapping("/signin")
 	  public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-
-	  /*
-	  Authentication authentication = authenticationManager
-	        .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())); */
-		  
+	  
 	  Authentication authentication = authenticationManager
 		        .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
@@ -98,42 +94,7 @@ public class AuthController {
 	                                   userDetails.getEmail(),
 	                                   roles));
 	  }
-	  /*
-	  @PostMapping("/signup")
-	  public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-		  
-	    if (userRepository.existsByuserName(signUpRequest.getUsername())) {
-	      return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
-	    }
-	    if (userRepository.existsByemail(signUpRequest.getEmail())) {
-	      return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
-	    }
-	    if(userRepository.existsByphone(signUpRequest.getPhone())) {
-	    	return ResponseEntity.badRequest().body(new MessageResponse("Error: Phone is already in use!"));
-	    }
-	    
-	    User user = new User(
-	    		signUpRequest.getUsername(),
-	            signUpRequest.getEmail(),
-	            encoder.encode(signUpRequest.getPassword()),
-	            signUpRequest.getFirstName(),
-	            signUpRequest.getSecondName(),
-	            signUpRequest.getLastName(),
-	            signUpRequest.getPhone(),
-	            signUpRequest.getInfo(),
-	            UserStatus.INVITED );
-
-	    Set<Role> roles = new HashSet<>();
-	    Role userRole = roleRepository.findByname(ERole.ROLE_USER)
-	              .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-	          roles.add(userRole);
-
-	    user.setRoles(roles);
-	    userRepository.save(user);
-
-	    return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
-	  } */
-
+	  
 	  @PostMapping("/signout")
 	  public ResponseEntity<?> logoutUser() {
 	    ResponseCookie cookie = jwtUtils.getCleanJwtCookie();
@@ -141,10 +102,4 @@ public class AuthController {
 	        .body(new MessageResponse("You've been signed out!"));
 	  }
 	  
-	  /*
-	  @PostMapping("/refresh")
-	  public ResponseEntity<?> refresh(HttpServletRequest request){
-		
-	  } */
-	
 }
