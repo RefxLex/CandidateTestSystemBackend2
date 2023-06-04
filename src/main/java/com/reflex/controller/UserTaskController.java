@@ -37,7 +37,13 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -78,11 +84,17 @@ import com.reflex.request.SolutionRequest;
 import com.reflex.request.TestLaunchUserTaskRequest;
 import com.reflex.request.UnitTestRequest;
 import com.reflex.request.UpdateCommentRequest;
+import com.reflex.response.UnitTestResultResponse;
 import com.reflex.request.CompleteUserTaskRequest;
 import com.reflex.model.UserTaskSolution;
 
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.StringEntity;
 
 @CrossOrigin
 @RestController
@@ -97,6 +109,11 @@ public class UserTaskController {
 	
 	@Autowired
 	UserRepository userRepository;
+	
+	@Value("${execModuleUrl}")
+	private String baseUrl;
+	
+	private static final int timeout=5000;
 	
 	@GetMapping("/{id}")
 	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){
@@ -180,301 +197,51 @@ public class UserTaskController {
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 	
-	@PostMapping("/setup")
-	public ResponseEntity<?> setupProjectsFolder(){
-		
-		// define OS
-		String fs = System.getProperty("file.separator");
-    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
-    	    	
-    	Path path = Paths.get(System.getProperty("user.home") + fs + "cadidate_test_system_projects");
-    	ProcessBuilder processBuilder = new ProcessBuilder();
-    	
-    	if(Files.exists(path)==false) {
-    		
-    		// create main, test_launch and lib folders
-	    	processBuilder.directory(new File(System.getProperty("user.home")));
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "mkdir cadidate_test_system_projects" + fs + "test_launch" + " " + "cadidate_test_system_projects" + fs
-	    				+ "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "mkdir -p cadidate_test_system_projects" + fs + "test_launch" + " " + "cadidate_test_system_projects" + fs
-	    				+ "lib");
-	    	}
-	    	runProcess(processBuilder);
-
-	        // download JUnit 5 jars
-	    	processBuilder.directory(new File(System.getProperty("user.home")));
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "/optmvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:get" +
-	    	" -DrepoUrl=https://download.java.net/maven/2/ -Dartifact=org.junit.jupiter:junit-jupiter-api:5.9.2");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "apache-maven-3.8.3/bin/mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:get" +
-	    		    	" -DrepoUrl=https://download.java.net/maven/2/ -Dartifact=org.junit.jupiter:junit-jupiter-api:5.9.2");
-	    	}
-	    	runProcess(processBuilder);
-	        
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:get" +
-	    	" -DrepoUrl=https://download.java.net/maven/2/ -Dartifact=org.junit.jupiter:junit-jupiter-api:5.9.2");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "apache-maven-3.8.3/bin/mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:get" +
-	    	" -DrepoUrl=https://download.java.net/maven/2/ -Dartifact=org.junit.platform:junit-platform-console-standalone:1.9.3");
-	    	}
-	    	runProcess(processBuilder);
-	    	
-	    	// copy jars to lib folder
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "copy .m2" + fs + "repository" + fs + "org" + fs + "apiguardian" + fs + "apiguardian-api" + fs 
-	    				+ "1.1.2" + fs + "apiguardian-api-1.1.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "cp .m2" + fs + "repository" + fs + "org" + fs + "apiguardian" + fs + "apiguardian-api" + fs 
-	    				+ "1.1.2" + fs + "apiguardian-api-1.1.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	}
-	    	runProcess(processBuilder);
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "copy .m2" + fs + "repository" + fs + "org" + fs + "junit" + fs + "jupiter" + fs + "junit-jupiter-api" + fs
-	    				+ "5.9.2" + fs + "junit-jupiter-api-5.9.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "cp .m2" + fs + "repository" + fs + "org" + fs + "junit" + fs + "jupiter" + fs + "junit-jupiter-api" + fs
-	    				+ "5.9.2" + fs + "junit-jupiter-api-5.9.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	}
-	    	runProcess(processBuilder);
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "copy .m2" + fs + "repository" + fs + "org" + fs + "junit" + fs + "platform" + fs + "junit-platform-commons"
-	    	+ fs + "1.9.2" + fs + "junit-platform-commons-1.9.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "cp .m2" + fs + "repository" + fs + "org" + fs + "junit" + fs + "platform" + fs + "junit-platform-commons"
-	    		    	+ fs + "1.9.2" + fs + "junit-platform-commons-1.9.2.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	}
-	    	runProcess(processBuilder);
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "copy .m2" + fs + "repository" + fs +"org" + fs +"junit" + fs +"platform" + fs +
-	    				"junit-platform-console-standalone" + fs +"1.9.3" + fs + "junit-platform-console-standalone-1.9.3.jar" +
-	    				" cadidate_test_system_projects" + fs + "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "cp .m2" + fs + "repository" + fs +"org" + fs +"junit" + fs +"platform" + fs +
-	    				"junit-platform-console-standalone" + fs +"1.9.3" + fs + "junit-platform-console-standalone-1.9.3.jar" +
-	    				" cadidate_test_system_projects" + fs + "lib");
-	    	}
-	    	runProcess(processBuilder);
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "copy .m2" + fs + "repository" + fs +"org" + fs + "opentest4j" + fs + "opentest4j" + fs +
-	    				"1.2.0" + fs +"opentest4j-1.2.0.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "cp .m2" + fs + "repository" + fs +"org" + fs + "opentest4j" + fs + "opentest4j" + fs +
-	    				"1.2.0" + fs +"opentest4j-1.2.0.jar" + " cadidate_test_system_projects" + fs + "lib");
-	    	}
-	    	runProcess(processBuilder);
-    	}
-    	else {
-    		System.out.println("main directory already created, skipping...");
-    	}
-		return new ResponseEntity<>(HttpStatus.CREATED);
-	}
-	
 	@PostMapping("/test-launch")
 	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
-		// define OS
-		String fs = System.getProperty("file.separator");
-    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
-		ProcessBuilder processBuilder = new ProcessBuilder();
 		
-	    // create project folder
-		Instant submitDate = Instant.now();
-		String projectKey = submitDate.toString();
-		int index = 0;
-		while(index != -1) {
-			index = projectKey.indexOf(":");
-			if(index != -1) {
-				projectKey = projectKey.substring(0, index) + "_" + projectKey.substring(index+1, projectKey.length());
-			}
-		}
-		index = 0;
-		while(index != -1) {
-			index = projectKey.indexOf("-");
-			if(index != -1) {
-				projectKey = projectKey.substring(0, index) + "_" + projectKey.substring(index+1, projectKey.length());
-			}
-		}
-		index = projectKey.indexOf(".");
-		projectKey = projectKey.substring(0, index) + "_" + projectKey.substring(index+1, projectKey.length());
+		RequestConfig requestConfig = RequestConfig.custom().
+			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
+		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
 		
-	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch"));
-	    if (isWindows) {
-	    	processBuilder.command("cmd.exe", "/c", "mkdir " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-	    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-	    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
-	    } 
-	    else if (isLinux){
-	    	processBuilder.command("sh", "-c", "mkdir -p " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-	    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-	    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
+		String result="";
+		UnitTestResultResponse unitTestResult = new UnitTestResultResponse();
+		ObjectMapper mapper = new ObjectMapper();
+		String requestJSON = "";
+		HttpPost post = new HttpPost(baseUrl + "/api/exec-module/test-launch");
+		post.addHeader("content-type", "application/json");
+		try {
+			requestJSON = mapper.writeValueAsString(userTaskRequest);
+			post.setEntity(new StringEntity(requestJSON));
+		}
+		catch(JsonProcessingException | UnsupportedEncodingException e) {
+			e.printStackTrace();
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+     
+        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+	             CloseableHttpResponse response = httpClient.execute(post)) {	        	
+	        	int statusCode = response.getStatusLine().getStatusCode();
+	        	if(statusCode == 200) {		        	
+		            result = EntityUtils.toString(response.getEntity());
+		            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
+	        	}
+	        	else {
+	        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
+	        	}
+	                        
 	    }
-	    runProcess(processBuilder);
-	 
-	 // create main files	        
-        for(SolutionRequest iterator: userTaskRequest.getSolution()) {
+	    catch(HttpHostConnectException exception) {
+	        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
+	    } catch (IOException e) {
+			e.printStackTrace();
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
         
-	        // add package
-	        String codeBase64 = iterator.getCode();
-	        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
-	        String codeDecoded = new String(decodedBytes);
-	        codeDecoded = "package com.cleverhire.java_project" + projectKey + ";" + "\n" + codeDecoded;
-	        
-	        // find out class name
-	        int startIndex = codeDecoded.indexOf("class");
-	        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
-	        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
-
-	        // create className.java
-	        FileOutputStream fos;
-			try {
-				fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects"+ fs + "test_launch" + fs + projectKey + fs
-						+ "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
-				fos.write(codeDecoded.getBytes());
-		        fos.flush();
-		        fos.close(); 
-			} catch (IOException e) {
-				e.printStackTrace();
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-			}
+        String testsResult="";
+        for(String iterator: unitTestResult.getReport()) {
+        	testsResult = testsResult + iterator;
         }
-        
-     // create test files
-        List<String> testClassesNameList = new ArrayList<>();
-        for(UnitTestRequest iterator: userTaskRequest.getUnitTest()) {
-        	
-	        // add package
-	        String codeBase64 = iterator.getCode();
-	        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
-	        String codeDecoded = new String(decodedBytes);
-	        codeDecoded = "package com.cleverhire.java_project" + projectKey + ";" + "\n" + codeDecoded;
-	        
-	        // find out class name
-	        int startIndex = codeDecoded.indexOf("class");
-	        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
-	        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
-	        testClassesNameList.add(className);
-
-	        // create className.java
-	        FileOutputStream fos;
-			try {
-				fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects"+ fs + "test_launch" + fs + projectKey + fs
-						+ "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
-				fos.write(codeDecoded.getBytes());
-		        fos.flush();
-		        fos.close(); 
-			} catch (IOException e) {
-				e.printStackTrace();
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-        }
-        
-      // compile classes      
-        // compile src
-	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch" + fs + projectKey));
-	    if (isWindows) {
-	    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
-	    			+ "java_project" + projectKey + fs + "*.java");
-	    } 
-	    else if (isLinux){
-	    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
-	    			+ "java_project" + projectKey + fs + "*.java");
-	    }
-	    String mainCompileResult = runProcess(processBuilder);
-	    
-	    // check compile errors
-	    int errorCodeIndex = mainCompileResult.indexOf("error code");
-	    Integer errorCode = Integer.parseInt(mainCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
-	    if(errorCode == 1) {
-	        Map<String, Object> response = new HashMap<>();
-	        String encodedMainCompileResult = Base64.getEncoder().encodeToString(mainCompileResult.getBytes(StandardCharsets.ISO_8859_1));
-	        response.put("result", encodedMainCompileResult);
-	        
-	  	  	// delete created folder
-		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch"));
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "rmdir /s /q " + projectKey);
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "rm -rf " + projectKey);
-		    }
-		    runProcess(processBuilder);
-	        
-	    	return new ResponseEntity<>(response, HttpStatus.OK);
-	    }
-	    
-	    // compile test
-	    System.out.println("/////////compile test");
-	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch" + fs + projectKey));
-	    if (isWindows) {
-	    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "test_classes" + " -cp %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs 
-	    			+ "lib" + fs + "*;target" + fs + "classes" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" 
-	    			+ projectKey + fs + "*.java");
-	    } 
-	    else if (isLinux){
-	    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/javac -d target" + fs + "test_classes" + " -cp ~" + fs + "cadidate_test_system_projects" + fs
-	    			+ "lib" + fs + "*:target" + fs + "classes" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + "*.java");
-	    }
-	    String testCompileResult = runProcess(processBuilder);
-	    
-	    // check compile errors
-	    errorCodeIndex = testCompileResult.indexOf("error code");
-	    errorCode = Integer.parseInt(testCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
-	    if(errorCode == 1) {
-	        Map<String, Object> response = new HashMap<>();
-	        String encodedTestCompileResult = Base64.getEncoder().encodeToString(testCompileResult.getBytes(StandardCharsets.ISO_8859_1));
-	        response.put("result", encodedTestCompileResult);
-	        
-	  	  	// delete created folder      
-		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch"));
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "rmdir /s /q " + projectKey);
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "rm -rf " + projectKey);
-		    }
-		    runProcess(processBuilder);
-	        
-	    	return new ResponseEntity<>(response, HttpStatus.OK);
-	    }
-    
-	  // run unit tests
-	    String testsResult="";
-	    for(String testClassName: testClassesNameList) {
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "java -jar" + " %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
-		    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target" + fs + "classes;target" + fs + "test_classes" 
-		    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/java -jar" + " ~" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
-		    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target"  + fs + "classes:target" + fs + "test_classes" 
-		    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
-		    }
-		    testsResult = testsResult + runProcess(processBuilder);
-	    }
-	  // delete created folder
-	    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + "test_launch"));
-	    if (isWindows) {
-	    	processBuilder.command("cmd.exe", "/c", "rmdir /s /q " + projectKey);
-	    } 
-	    else if (isLinux){
-	    	processBuilder.command("sh", "-c", "rm -rf " + projectKey);
-	    }
-	    runProcess(processBuilder);
-
         Map<String, Object> response = new HashMap<>();
         String encodedtestResult = Base64.getEncoder().encodeToString(testsResult.getBytes(StandardCharsets.ISO_8859_1));
         response.put("result", encodedtestResult);	  
@@ -487,199 +254,102 @@ public class UserTaskController {
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
 		if(userTask.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user task found with id=" + userTaskId);
-		}
-		
+		}	
 		UserTask newUserTask = userTask.get();
 		
 		if(newUserTask.isCompleted()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already completed");
 		}
 		else {
-			
+					
+			List<SolutionRequest> solutionFilesList = new ArrayList<>();
+			List<UnitTestRequest> unitTestsList = new ArrayList<>();
 			newUserTask.getUserTaskSolution().clear();
 			for(SolutionRequest iterator: userTaskRequest.getSolution()) {
 				UserTaskSolution userTaskSol = new UserTaskSolution(iterator.getCode());
 				newUserTask.getUserTaskSolution().add(userTaskSol);
+				solutionFilesList.add(iterator);
+			}
+			for(TaskUnitTest iterator: newUserTask.getTask().getUnitTest()) {
+				UnitTestRequest unitTest = new UnitTestRequest();
+				unitTest.setCode(iterator.getCode());
+				unitTestsList.add(unitTest);
+			}
+			TestLaunchUserTaskRequest execModuleRequest = new TestLaunchUserTaskRequest();
+			execModuleRequest.setSolution(solutionFilesList);
+			execModuleRequest.setUnitTest(unitTestsList);
+			
+			RequestConfig requestConfig = RequestConfig.custom().
+				    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
+			HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
+			
+			String result="";
+			UnitTestResultResponse unitTestResult = new UnitTestResultResponse();
+			ObjectMapper mapper = new ObjectMapper();
+			String requestJSON = "";
+			HttpPost post = new HttpPost(baseUrl + "/api/exec-module/test-launch");
+			post.addHeader("content-type", "application/json");
+			try {
+				requestJSON = mapper.writeValueAsString(execModuleRequest);
+				post.setEntity(new StringEntity(requestJSON));
+			}
+			catch(JsonProcessingException | UnsupportedEncodingException e) {
+				e.printStackTrace();
+				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+	     
+	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+		             CloseableHttpResponse response = httpClient.execute(post)) {	        	
+		        	int statusCode = response.getStatusLine().getStatusCode();
+		        	if(statusCode == 200) {		        	
+			            result = EntityUtils.toString(response.getEntity());
+			            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
+		        	}
+		        	else {
+		        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
+		        	}
+		                        
+		    }
+		    catch(HttpHostConnectException exception) {
+		        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
+		    } catch (IOException e) {
+				e.printStackTrace();
+				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 			
-		// define OS
-			String fs = System.getProperty("file.separator");
-			String projectKey = "_" + userTask.get().getId().toString();
-	    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-	    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
-	    	
-	    	ProcessBuilder processBuilder = new ProcessBuilder();	
-	    // create project folder
-		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects"));
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "mkdir " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-		    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-		    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "mkdir -p " + projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-		    			+ "java_project" + projectKey + " " + projectKey + fs + "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs
-		    			+ "java_project" + projectKey + " " + projectKey + fs + "target" + fs + "classes" + " " + projectKey + fs + "target" + fs + "test_classes");
+		 // parse test results  
+		    String encodedTestResult="";
+		    for(String iterator: unitTestResult.getReport()) {
+		    	encodedTestResult = encodedTestResult + Base64.getEncoder().encodeToString(iterator.getBytes(StandardCharsets.ISO_8859_1));
 		    }
-		    runProcess(processBuilder);
-	    
-	        
-	      // create main files	        
-	        for(UserTaskSolution iterator: newUserTask.getUserTaskSolution()) {
-	        
-		        // add package
-		        String codeBase64 = iterator.getCode();
-		        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
-		        String codeDecoded = new String(decodedBytes);
-		        codeDecoded = "package com.cleverhire.java_project" + projectKey + ";" + "\n" + codeDecoded;
-		        
-		        // find out class name
-		        int startIndex = codeDecoded.indexOf("class");
-		        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
-		        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
-
-		        // create className.java
-		        FileOutputStream fos;
-				try {
-					fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-							+ "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
-					fos.write(codeDecoded.getBytes());
-			        fos.flush();
-			        fos.close(); 
-				} catch (IOException e) {
-					e.printStackTrace();
-					throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-				}
-	        }
-	                
-	     // create test files
-	        List<String> testClassesNameList = new ArrayList<>();
-	        for(TaskUnitTest iterator: newUserTask.getTask().getUnitTest()) {
-	        	
-		        // add package
-		        String codeBase64 = iterator.getCode();
-		        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
-		        String codeDecoded = new String(decodedBytes);
-		        codeDecoded = "package com.cleverhire.java_project" + projectKey + ";" + "\n" + codeDecoded;
-		        
-		        // find out class name
-		        int startIndex = codeDecoded.indexOf("class");
-		        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
-		        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
-		        testClassesNameList.add(className);
-
-		        // create className.java
-		        FileOutputStream fos;
-				try {
-					fos = new FileOutputStream(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey + fs 
-							+ "src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + className +".java");
-					fos.write(codeDecoded.getBytes());
-			        fos.flush();
-			        fos.close(); 
-				} catch (IOException e) {
-					e.printStackTrace();
-					throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-				}
-	        }
-	        
-	     // compile classes
-	        boolean compileIsOk = true;
-	        // compile src
-		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey));
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
-		    			+ "java_project" + projectKey + fs + "*.java");
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/javac -d target" + fs + "classes" + " src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire" + fs 
-		    			+ "java_project" + projectKey + fs + "*.java");
-		    }
-		    String mainCompileResult = runProcess(processBuilder);
-		    
-		    // check compile errors
-		    int errorCodeIndex = mainCompileResult.indexOf("error code");
-		    Integer errorCode = Integer.parseInt(mainCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
-		    if(errorCode == 1) {
-		        String encodedMainCompileResult = Base64.getEncoder().encodeToString(mainCompileResult.getBytes(StandardCharsets.ISO_8859_1));
-		        compileIsOk = false;
-	        	// number of tests unknown, set failure rate to 100%
-		     	newUserTask.setTestsPassed(0);
-		     	newUserTask.setTestsFailed(1);
-	        	newUserTask.setOverallTestsCount(1);
-	        	newUserTask.setCompilationResult("FAIL");
-	        	newUserTask.setResultReport(encodedMainCompileResult);
-		    }
-		    
-		    // compile test
-		    processBuilder.directory(new File(System.getProperty("user.home") + fs + "cadidate_test_system_projects" + fs + projectKey));
-		    if (isWindows) {
-		    	processBuilder.command("cmd.exe", "/c", "javac -d target" + fs + "test_classes" + " -cp %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs 
-		    			+ "lib" + fs + "*;target" + fs + "classes" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" 
-		    			+ projectKey + fs + "*.java");
-		    } 
-		    else if (isLinux){
-		    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/javac -d target" + fs + "test_classes" + " -cp ~" + fs + "cadidate_test_system_projects" + fs
-		    			+ "lib" + fs + "*:target" + fs + "classes" + " src" + fs + "test" + fs + "java" + fs + "com" + fs + "cleverhire" + fs + "java_project" + projectKey + fs + "*.java");
-		    }
-		    String testCompileResult = runProcess(processBuilder);
-		    
-		    // check compile errors
-		    errorCodeIndex = testCompileResult.indexOf("error code");
-		    errorCode = Integer.parseInt(testCompileResult.substring(errorCodeIndex+13 ,errorCodeIndex+14));	    
-		    if(errorCode == 1) {
-		        String encodedTestCompileResult = Base64.getEncoder().encodeToString(testCompileResult.getBytes(StandardCharsets.ISO_8859_1));
-		        compileIsOk = false;
-	        	// number of tests unknown, set failure rate to 100%
-		     	newUserTask.setTestsPassed(0);
-		     	newUserTask.setTestsFailed(1);
-	        	newUserTask.setOverallTestsCount(1);
-	        	newUserTask.setCompilationResult("FAIL");
-	        	newUserTask.setResultReport(encodedTestCompileResult);
-
-		    }
-		    
-		    if(compileIsOk) {
-			    	
-			// run unit tests
-			    String testsResult="";
-			    List<String> testResultList = new ArrayList<>();
-			    for(String testClassName: testClassesNameList) {
-				    if (isWindows) {
-				    	processBuilder.command("cmd.exe", "/c", "java -jar" + " %USERPROFILE%" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
-				    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target" + fs + "classes;target" + fs + "test_classes" 
-				    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
-				    } 
-				    else if (isLinux){
-				    	processBuilder.command("sh", "-c", "~/jdk-17.0.6/bin/java -jar" + " ~" + fs + "cadidate_test_system_projects" + fs + "lib" + fs
-				    			+ "junit-platform-console-standalone-1.9.3.jar" + " --class-path" + " target"  + fs + "classes:target" + fs + "test_classes" 
-				    			+ " --select-class" + " com.cleverhire." + "java_project" + projectKey + "." + testClassName);
-				    }
-				    testsResult = runProcess(processBuilder);
-				    testResultList.add(testsResult);
-			    }                      
-	 
-		     // parse test results
-			    Integer testsPassed=0;
+		    if(unitTestResult.compileIsOk()) {			                         
+		    	Integer testsPassed=0;
 			    Integer testsFailed=0;
 			    Integer overallTestCount = 0;
 			    int foundIndex = 0;
 			    int failedIndex = 0;
 			    int successfulIndex = 0;
-			    String encodedTestResult="";
-			    for(String iterator: testResultList) {
+			    for(String iterator: unitTestResult.getReport()) {
 			    	foundIndex = iterator.indexOf("tests found");
 			    	failedIndex = iterator.indexOf("tests failed");
 			    	successfulIndex = iterator.indexOf("tests successful");
 			    	overallTestCount = overallTestCount + Integer.parseInt(iterator.substring(foundIndex-2,foundIndex-1));
 			    	testsFailed = testsFailed + Integer.parseInt(iterator.substring(failedIndex-2,failedIndex-1));
 			    	testsPassed = testsPassed + Integer.parseInt(iterator.substring(successfulIndex-2,successfulIndex-1));
-			    	encodedTestResult = encodedTestResult + Base64.getEncoder().encodeToString(iterator.getBytes(StandardCharsets.ISO_8859_1));
 			    }
 			    newUserTask.setTestsPassed(testsPassed);
 			    newUserTask.setTestsFailed(testsFailed);
 			    newUserTask.setOverallTestsCount(overallTestCount);
 			    newUserTask.setCompilationResult("OK");
 			    newUserTask.setResultReport(encodedTestResult);
+		    } else {
+		    	
+	        	// number of tests unknown, set failure rate to 100%
+		     	newUserTask.setTestsPassed(0);
+		     	newUserTask.setTestsFailed(1);
+	        	newUserTask.setOverallTestsCount(1);
+	        	newUserTask.setCompilationResult("FAIL");
+	        	newUserTask.setResultReport(encodedTestResult);
 		    }
 	    
 	     // check if user done all tasks
@@ -749,36 +419,6 @@ public class UserTaskController {
 	     	newUserTask.setCompleted(true);
 			return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 		}
-	}
-	
-	public String runProcess(ProcessBuilder processBuilder) {
-		String result = "";
-		String errorMsg = "";
-        try {
-            Process process = processBuilder.start();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            String line=null;
-            String error=null;
-            while ( ((line = reader.readLine()) != null) || ((error = errorReader.readLine()) != null) ) {
-            	if (line != null) {
-                	result = result + "\n" + "~" + line;
-                    System.out.println(line);
-            	}
-            	if (error!=null) {
-            		errorMsg = errorMsg + "\n" + "~" + error;
-                    System.out.println(error);
-            	}
-            }
-            int exitCode = process.waitFor();
-            System.out.println("\nExited with error code : " + exitCode);
-            result = result + errorMsg + "\n ~ Exited with error code : " + exitCode;
-            return result;
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
-        }
-
 	}
 	
 }
