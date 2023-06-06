@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.reflex</groupId>
 	<artifactId>CandidateTestSystemBackend</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1</version>
 	<name>CandidateTestSystemBackend</name>
 	<description>Server side for candidate test system application</description>
 	<properties>

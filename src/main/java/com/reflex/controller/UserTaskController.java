@@ -113,7 +113,7 @@ public class UserTaskController {
 	@Value("${execModuleUrl}")
 	private String baseUrl;
 	
-	private static final int timeout=5000;
+	private static final int timeout=15000;
 	
 	@GetMapping("/{id}")
 	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){

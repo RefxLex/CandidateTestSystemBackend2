@@ -10,6 +10,9 @@ import java.io.FileOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.List;
@@ -106,11 +109,31 @@ public class CodeAnalysisController {
 		
 		// check language
         Optional<SupportedLanguages> lang = SupportedLanguages.byNameIgnoreCase(userTask.get().getTask().getLanguageName());
-
-		
+        
 		if( (userTask.get().isAnalyzed()) || (lang.isEmpty()) ) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already analyzed or language not supported");
 		}
+			// define OS
+			String fs = System.getProperty("file.separator");
+	    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+	    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
+		
+	    	// create main folder
+	    	Path path = Paths.get(System.getProperty("user.home") + fs + "sonar_projects");
+	    	ProcessBuilder processBuilder = new ProcessBuilder();    	
+	    	if(Files.exists(path)==false) {
+    		
+		    	processBuilder.directory(new File(System.getProperty("user.home")));
+		    	if (isWindows) {
+		    		processBuilder.command("cmd.exe", "/c", "mkdir sonar_projects");
+		    	} 
+		    	else if (isLinux){
+		    		processBuilder.command("sh", "-c", "mkdir -p sonar_projects");
+		    	}
+		    runProcess(processBuilder);
+	    	} else {
+	    		System.out.println("main directory already created, skipping...");
+	    	}
 			
 			RequestConfig requestConfig = RequestConfig.custom().
 				    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
@@ -168,110 +191,33 @@ public class CodeAnalysisController {
 		    catch(HttpHostConnectException exception) {
 		    	throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to sonar qube");
 		    }
-			
-		
-			// define OS
-			String fs = System.getProperty("file.separator");
-	    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-	    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
-	    	
+				    	
 	    	// create project folder
-	    	ProcessBuilder processBuilder = new ProcessBuilder();
 	    	processBuilder.directory(new File(System.getProperty("user.home")));
 	    	if (isWindows) {
 	    		processBuilder.command("cmd.exe", "/c", "mkdir sonar_projects" + fs + projectKey);
 	    	} 
 	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "mkdir sonar_projects" + fs + projectKey);
+	    		processBuilder.command("sh", "-c", "mkdir -p sonar_projects" + fs + projectKey);
 	    	}
-	
-	        try {
-	            Process process = processBuilder.start();
-	            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-	            String line;
-	            while ((line = reader.readLine()) != null) {
-	                System.out.println(line);
-	            }
-	            int exitCode = process.waitFor();
-	            System.out.println("\nExited with error code : " + exitCode);
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        } catch (InterruptedException e) {
-	            e.printStackTrace();
-	        }
+	    	runProcess(processBuilder);
 	        
 	        // init maven project
 	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey));
-	        String mvnInitCommand = "mvn archetype:generate -DgroupId=com.cleverhire" + " -DartifactId=java-project"+ projectKey 
+	        String mvnInitCommand = "mvn archetype:generate -DgroupId=com.cleverhire" + " -DartifactId=java_project"+ projectKey 
 	        		+ " -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false";
 	    	if (isWindows) {
 	    		processBuilder.command("cmd.exe", "/c", mvnInitCommand);
 	    	} 
 	    	else if (isLinux){
 	    		processBuilder.command("sh", "-c", mvnInitCommand);
-	    	}	        
-	        
-	        try {
-	            Process process = processBuilder.start();
-	            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-	            String line;
-	            while ((line = reader.readLine()) != null) {
-	                System.out.println(line);
-	            }
-	            int exitCode = process.waitFor();
-	            System.out.println("\nExited with error code : " + exitCode);
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        } catch (InterruptedException e) {
-	            e.printStackTrace();
-	        }
-	        
-	        // remove unnecessary file
-	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey + fs 
-	        		+ "java-project"+ projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire"));
-	    	if (isWindows) {
-	    		processBuilder.command("cmd.exe", "/c", "del App.java");
-	    	} 
-	    	else if (isLinux){
-	    		processBuilder.command("sh", "-c", "rm App.java");
 	    	}
-	        try {
-	            Process process = processBuilder.start();
-	            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-	            String line;
-	            while ((line = reader.readLine()) != null) {
-	                System.out.println(line);
-	            }
-	            int exitCode = process.waitFor();
-	            System.out.println("\nExited with error code : " + exitCode);
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        } catch (InterruptedException e) {
-	            e.printStackTrace();
-	        }
-	        
-	        // add package
-	        List<UserTaskSolution> userTaskSolList = new ArrayList<>();
-	        for(UserTaskSolution iterator: userTask.get().getUserTaskSolution()) {
-	        	userTaskSolList.add(iterator);
-	        }
-	        String codeBase64 = userTaskSolList.get(0).getCode();
-	        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
-	        String codeDecoded = new String(decodedBytes);
-	        codeDecoded = "package com.cleverhire;\n" + codeDecoded;
-	        
-	        // create Main.java
-	        FileOutputStream fos = new FileOutputStream(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey + fs 
-	        		+ "java-project"+ projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire"
-	        		+ fs +"Main.java");
-	        fos.write(codeDecoded.getBytes());
-	        fos.flush();
-	        fos.close();
-	        
+	    	runProcess(processBuilder);
+	                
 	        // edit pom.xml
 	        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 	        try (InputStream is = new FileInputStream(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey + fs 
-	        		+ "java-project"+ projectKey + fs + "pom.xml")) {
+	        		+ "java_project"+ projectKey + fs + "pom.xml")) {
 	            DocumentBuilder db = dbf.newDocumentBuilder();
 	            Document doc = db.parse(is);
 	            
@@ -280,26 +226,56 @@ public class CodeAnalysisController {
 	            Element encoding = doc.createElement("project.build.sourceEncoding");
 	            encoding.setTextContent("UTF-8");
 	            Element source = doc.createElement("maven.compiler.source");
-	            source.setTextContent("11");
+	            source.setTextContent("17");
 	            Element target = doc.createElement("maven.compiler.target");
-	            target.setTextContent("11");
+	            target.setTextContent("17");
 	            properties.appendChild(encoding);
 	            properties.appendChild(source);
 	            properties.appendChild(target);
 	            project.appendChild(properties);
 	
 	            try (FileOutputStream output = new FileOutputStream(System.getProperty("user.home") + fs + "sonar_projects" + fs 
-	            		+ projectKey + fs + "java-project"+ projectKey + fs + "pom.xml")) {
+	            		+ projectKey + fs + "java_project"+ projectKey + fs + "pom.xml")) {
 	            	writeXml(doc, output);
 	            }
 	
-		   } catch (ParserConfigurationException | SAXException | IOException | TransformerException e) {
+		    } catch (ParserConfigurationException | SAXException | IOException | TransformerException e) {
 		       e.printStackTrace();
-		   }
+		       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+		    }
+	        
+	     // create main files	        
+	        for(UserTaskSolution iterator: newUserTask.getUserTaskSolution()) {
+	        
+		        // add package
+		        String codeBase64 = iterator.getCode();
+		        byte[] decodedBytes = Base64.getDecoder().decode(codeBase64);
+		        String codeDecoded = new String(decodedBytes);
+		        codeDecoded = "package com.cleverhire;" + "\n" + codeDecoded;
+		        
+		        // find out class name
+		        int startIndex = codeDecoded.indexOf("class");
+		        int secondSpaceIndex = codeDecoded.indexOf(" ", startIndex + 6);
+		        String className = codeDecoded.substring(startIndex + 6, secondSpaceIndex);
+
+		        // create className.java
+		        FileOutputStream fos;
+				try {
+					fos = new FileOutputStream(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey + fs 
+							+ "java_project"+ projectKey + fs + "src" + fs + "main" + fs + "java" + fs + "com" + fs + "cleverhire"
+							+ fs + className +".java");
+					fos.write(codeDecoded.getBytes());
+			        fos.flush();
+			        fos.close(); 
+				} catch (IOException e) {
+					e.printStackTrace();
+					throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+				}
+	        }
 	        
 	       // run sonar analysis
 	        processBuilder.directory(new File(System.getProperty("user.home") + fs + "sonar_projects" + fs + projectKey + fs 
-	        		+ "java-project"+ projectKey));
+	        		+ "java_project"+ projectKey));
 	        String mvnRunAnalisysCommand = "mvn clean verify sonar:sonar -Dsonar.projectKey=" + projectKey 
 	        		+ " -Dsonar.host.url="+ sonarUrl + " -Dsonar.login=" + sonarAuthToken;
 	        
@@ -331,6 +307,36 @@ public class CodeAnalysisController {
         
 		return new ResponseEntity<>(null, HttpStatus.OK);
 		
+	}
+	
+	public String runProcess(ProcessBuilder processBuilder) {
+		String result = "";
+		String errorMsg = "";
+        try {
+            Process process = processBuilder.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            String line=null;
+            String error=null;
+            while ( ((line = reader.readLine()) != null) || ((error = errorReader.readLine()) != null) ) {
+            	if (line != null) {
+                	result = result + "\n" + "~" + line;
+                    System.out.println(line);
+            	}
+            	if (error!=null) {
+            		errorMsg = errorMsg + "\n" + "~" + error;
+                    System.out.println(error);
+            	}
+            }                 
+            int exitCode = process.waitFor();
+            System.out.println("\nExited with error code : " + exitCode);
+            result = result + errorMsg + "\n ~ Exited with error code : " + exitCode;
+            return result;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
+        }
+
 	}
 	
 }
