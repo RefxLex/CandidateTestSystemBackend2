@@ -37,7 +37,6 @@ import com.reflex.model.Role;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
 import com.reflex.model.enums.ERole;
-import com.reflex.model.enums.TaskDifficulty;
 import com.reflex.model.enums.UserStatus;
 import com.reflex.repository.RoleRepository;
 import com.reflex.repository.UserRepository;

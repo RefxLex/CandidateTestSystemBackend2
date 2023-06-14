@@ -71,11 +71,13 @@ import org.xml.sax.SAXException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.reflex.model.ExecModulePort;
 import com.reflex.model.Task;
 import com.reflex.model.TaskUnitTest;
 import com.reflex.model.User;
 import com.reflex.model.UserTask;
 import com.reflex.model.enums.UserStatus;
+import com.reflex.repository.ExecModulePortRepository;
 import com.reflex.repository.TaskRepository;
 import com.reflex.repository.UserRepository;
 import com.reflex.repository.UserTaskRepository;
@@ -110,8 +112,14 @@ public class UserTaskController {
 	@Autowired
 	UserRepository userRepository;
 	
+	@Autowired
+	ExecModulePortRepository execModulePortRepository;
+	
 	@Value("${execModuleUrl}")
-	private String baseUrl;
+	private String execModuleUrl;
+	
+	@Value("${execModulePortPoolStartIndex}")
+	private String execModulePortPoolStartIndex;
 	
 	private static final int timeout=15000;
 	
@@ -200,6 +208,23 @@ public class UserTaskController {
 	@PostMapping("/test-launch")
 	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
 		
+		// define OS
+		String fs = System.getProperty("file.separator");
+    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
+		ProcessBuilder processBuilder = new ProcessBuilder();
+		
+		// bind port
+		Long port = rememberPort();
+		
+		// create docker container
+	    if (isLinux){
+	    	processBuilder.directory(new File(System.getProperty("user.home")));
+	    	processBuilder.command("sh", "-c","docker container run --rm --name cts-server-1 -p " + port + ":8083 -d refxlexj/ctsmodule:0.1");
+	    	String dockerOutput = runProcess(processBuilder);
+	    	System.out.println("started container with id=" + dockerOutput + "and port=" + port);
+	    }
+		
 		RequestConfig requestConfig = RequestConfig.custom().
 			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
 		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
@@ -208,7 +233,7 @@ public class UserTaskController {
 		UnitTestResultResponse unitTestResult = new UnitTestResultResponse();
 		ObjectMapper mapper = new ObjectMapper();
 		String requestJSON = "";
-		HttpPost post = new HttpPost(baseUrl + "/api/exec-module/test-launch");
+		HttpPost post = new HttpPost(execModuleUrl + ":" + port + "/api/exec-module/test-launch");
 		post.addHeader("content-type", "application/json");
 		try {
 			requestJSON = mapper.writeValueAsString(userTaskRequest);
@@ -261,6 +286,20 @@ public class UserTaskController {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task already completed");
 		}
 		else {
+			
+			// define OS
+			String fs = System.getProperty("file.separator");
+	    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+	    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
+			ProcessBuilder processBuilder = new ProcessBuilder();
+			
+			// create docker container
+		    if (isLinux){
+		    	processBuilder.directory(new File(System.getProperty("user.home")));
+		    	processBuilder.command("sh", "-c","docker container run --rm --name cts-server-1 -p 8083:8083 -d refxlexj/ctsmodule:0.1");
+		    	String dockerOutput = runProcess(processBuilder);
+		    	System.out.println("started container with id=" + dockerOutput);
+		    }
 					
 			List<SolutionRequest> solutionFilesList = new ArrayList<>();
 			List<UnitTestRequest> unitTestsList = new ArrayList<>();
@@ -287,7 +326,7 @@ public class UserTaskController {
 			UnitTestResultResponse unitTestResult = new UnitTestResultResponse();
 			ObjectMapper mapper = new ObjectMapper();
 			String requestJSON = "";
-			HttpPost post = new HttpPost(baseUrl + "/api/exec-module/test-launch");
+			HttpPost post = new HttpPost(execModuleUrl + ":8083" + "/api/exec-module/test-launch");
 			post.addHeader("content-type", "application/json");
 			try {
 				requestJSON = mapper.writeValueAsString(execModuleRequest);
@@ -419,6 +458,50 @@ public class UserTaskController {
 	     	newUserTask.setCompleted(true);
 			return new ResponseEntity<>(userTaskRepository.save(newUserTask), HttpStatus.OK);
 		}
+	}
+	public String runProcess(ProcessBuilder processBuilder) {
+		String result = "";
+		String errorMsg = "";
+        try {
+            Process process = processBuilder.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            String line=null;
+            String error=null;
+            while ( ((line = reader.readLine()) != null) || ((error = errorReader.readLine()) != null) ) {
+            	if (line != null) {
+                	result = result + "\n" + "~" + line;
+                    System.out.println(line);
+            	}
+            	if (error!=null) {
+            		errorMsg = errorMsg + "\n" + "~" + error;
+                    System.out.println(error);
+            	}
+            }                 
+            int exitCode = process.waitFor();
+            System.out.println("\nExited with error code : " + exitCode);
+            result = result + errorMsg + "\n ~ Exited with error code : " + exitCode;
+            return result;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
+        }
+
+	}
+	
+	@Transactional
+	public Long rememberPort() {
+		List<ExecModulePort> portList = execModulePortRepository.findAll();
+		Long portNumber = Long.parseLong(execModulePortPoolStartIndex);
+		if(portList.isEmpty()) {
+			ExecModulePort port = new ExecModulePort(portNumber);
+			execModulePortRepository.save(port);
+		}else {
+			portNumber = portList.get(portList.size()-1).getPort();
+			ExecModulePort port = new ExecModulePort(portNumber+1);
+			execModulePortRepository.save(port);
+		}
+		return portNumber;
 	}
 	
 }
