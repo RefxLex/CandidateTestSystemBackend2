@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TimerTask;
+import java.util.Timer;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -41,6 +43,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.execchain.RequestAbortedException;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -95,6 +98,7 @@ import jakarta.validation.Valid;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.StringEntity;
 
@@ -121,7 +125,7 @@ public class UserTaskController {
 	@Value("${execModulePortPoolStartIndex}")
 	private String execModulePortPoolStartIndex;
 	
-	private static final int timeout=15000;
+	private static final int timeout=5000;
 	
 	@GetMapping("/{id}")
 	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){
@@ -206,25 +210,17 @@ public class UserTaskController {
 	}
 	
 	@PostMapping("/test-launch")
+	@Transactional
 	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
 		
-		// define OS
-		String fs = System.getProperty("file.separator");
-    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
-		ProcessBuilder processBuilder = new ProcessBuilder();
-		
 		// bind port
+		ProcessBuilder processBuilder = new ProcessBuilder();
 		Long port = rememberPort();
 		
-		// create docker container
-	    if (isLinux){
-	    	processBuilder.directory(new File(System.getProperty("user.home")));
-	    	processBuilder.command("sh", "-c","docker container run --rm --name cts-server-1 -p " + port + ":8083 -d refxlexj/ctsmodule:0.1");
-	    	String dockerOutput = runProcess(processBuilder);
-	    	System.out.println("started container with id=" + dockerOutput + "and port=" + port);
-	    }
-		
+		// create container
+		String containerId = "";
+	    containerId = createContainer(processBuilder, port);
+	    		  
 		RequestConfig requestConfig = RequestConfig.custom().
 			    setConnectionRequestTimeout(timeout).setConnectTimeout(timeout).setSocketTimeout(timeout).build();
 		HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
@@ -235,33 +231,65 @@ public class UserTaskController {
 		String requestJSON = "";
 		HttpPost post = new HttpPost(execModuleUrl + ":" + port + "/api/exec-module/test-launch");
 		post.addHeader("content-type", "application/json");
+		
+		// set timer for container to complete task
+		int hardTimeout = 15000;
+		TimerTask task = new TimerTask() {
+		    @Override
+		    public void run() {	    		
+		    	// container stuck in loop
+			    post.abort();	    	
+		    }
+		};
+		new Timer(true).schedule(task, hardTimeout);
+		
 		try {
 			requestJSON = mapper.writeValueAsString(userTaskRequest);
 			post.setEntity(new StringEntity(requestJSON));
 		}
 		catch(JsonProcessingException | UnsupportedEncodingException e) {
 			e.printStackTrace();
+			killContainer(processBuilder, containerId);
+			releasePort(port);
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
      
         try (CloseableHttpClient httpClient = HttpClients.createDefault();
-	             CloseableHttpResponse response = httpClient.execute(post)) {	        	
+        		CloseableHttpResponse response = httpClient.execute(post)) {	        	
 	        	int statusCode = response.getStatusLine().getStatusCode();
 	        	if(statusCode == 200) {		        	
 		            result = EntityUtils.toString(response.getEntity());
 		            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
 	        	}
 	        	else {
+	        		killContainer(processBuilder, containerId);
+	        		releasePort(port);
 	        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
 	        	}
 	                        
 	    }
 	    catch(HttpHostConnectException exception) {
+	    	exception.printStackTrace();
+	    	killContainer(processBuilder, containerId);
+	    	releasePort(port);
 	        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
-	    } catch (IOException e) {
-			e.printStackTrace();
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+	    }
+        catch (IOException e) {
+			//e.printStackTrace();
+			killContainer(processBuilder, containerId);
+			releasePort(port);
+	        Map<String, Object> response = new HashMap<>();
+	        response.put("result", "container killed, reason: request execution timeout exeeded");	
+	        return new ResponseEntity<>(response, HttpStatus.OK);
 		}
+        
+        // stop and remove container    
+	    processBuilder.directory(new File(System.getProperty("user.home")));
+	    processBuilder.command("sh", "-c","docker stop " + containerId);
+	    runProcess(processBuilder);
+	    
+	    // release port
+	    releasePort(port);
         
         String testsResult="";
         for(String iterator: unitTestResult.getReport()) {
@@ -274,6 +302,7 @@ public class UserTaskController {
 	}
 	
 	@PutMapping("/complete/{id}")
+	@Transactional
 	public ResponseEntity<?> runAllUnitTests(@PathVariable("id") Long userTaskId, @Valid @RequestBody CompleteUserTaskRequest userTaskRequest){
 		
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
@@ -287,19 +316,13 @@ public class UserTaskController {
 		}
 		else {
 			
-			// define OS
-			String fs = System.getProperty("file.separator");
-	    	boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-	    	boolean isLinux = System.getProperty("os.name").toLowerCase().startsWith("linux");
+			// bind port
 			ProcessBuilder processBuilder = new ProcessBuilder();
+			Long port = rememberPort();
 			
-			// create docker container
-		    if (isLinux){
-		    	processBuilder.directory(new File(System.getProperty("user.home")));
-		    	processBuilder.command("sh", "-c","docker container run --rm --name cts-server-1 -p 8083:8083 -d refxlexj/ctsmodule:0.1");
-		    	String dockerOutput = runProcess(processBuilder);
-		    	System.out.println("started container with id=" + dockerOutput);
-		    }
+			// create container
+			String containerId = "";
+		    containerId = createContainer(processBuilder, port);
 					
 			List<SolutionRequest> solutionFilesList = new ArrayList<>();
 			List<UnitTestRequest> unitTestsList = new ArrayList<>();
@@ -328,12 +351,26 @@ public class UserTaskController {
 			String requestJSON = "";
 			HttpPost post = new HttpPost(execModuleUrl + ":8083" + "/api/exec-module/test-launch");
 			post.addHeader("content-type", "application/json");
+			
+			// set timer for container to complete task
+			int hardTimeout = 15000;
+			TimerTask task = new TimerTask() {
+			    @Override
+			    public void run() {	    		
+			    	// container stuck in loop
+				    post.abort();	    	
+			    }
+			};
+			new Timer(true).schedule(task, hardTimeout);
+			
 			try {
 				requestJSON = mapper.writeValueAsString(execModuleRequest);
 				post.setEntity(new StringEntity(requestJSON));
 			}
 			catch(JsonProcessingException | UnsupportedEncodingException e) {
 				e.printStackTrace();
+				killContainer(processBuilder, containerId);
+				releasePort(port);
 				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 	     
@@ -345,16 +382,33 @@ public class UserTaskController {
 			            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
 		        	}
 		        	else {
+		        		killContainer(processBuilder, containerId);
+		        		releasePort(port);
 		        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
 		        	}
 		                        
 		    }
 		    catch(HttpHostConnectException exception) {
+		    	exception.printStackTrace();
+		    	killContainer(processBuilder, containerId);
+		    	releasePort(port);
 		        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
-		    } catch (IOException e) {
-				e.printStackTrace();
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+		    }
+		    catch (IOException e) {
+				killContainer(processBuilder, containerId);
+				releasePort(port);
+			    Map<String, Object> response = new HashMap<>();
+			    response.put("result", "container killed, reason: request execution timeout exeeded");	
+			    return new ResponseEntity<>(response, HttpStatus.OK);
 			}
+	        
+	        // stop and remove container    
+		    processBuilder.directory(new File(System.getProperty("user.home")));
+		    processBuilder.command("sh", "-c","docker stop " + containerId);
+		    runProcess(processBuilder);
+		    
+		    // release port
+		    releasePort(port);
 			
 		 // parse test results  
 		    String encodedTestResult="";
@@ -489,6 +543,46 @@ public class UserTaskController {
 
 	}
 	
+	public String createContainer(ProcessBuilder processBuilder, Long port) {
+    	processBuilder.directory(new File(System.getProperty("user.home")));
+    	processBuilder.command("sh", "-c","docker container run --rm -p " + port + ":8083 -d refxlexj/ctsmodule:0.1");
+    	
+		String containerId = "";
+        try {
+            Process process = processBuilder.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line=null;
+
+            while (((line = reader.readLine()) != null)) {
+            	if (line != null) {
+            		containerId = containerId + line;
+                    System.out.println(line);
+            	}
+            }                 
+            int exitCode = process.waitFor();
+            if(exitCode != 0) {
+            	// failed to create docker container
+            	throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR); 
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
+        }	    	
+    	System.out.println("started container with id= " + containerId + " and port=" + port);	    	
+    	try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+    	return containerId;
+	}
+	
+	public void killContainer(ProcessBuilder processBuilder, String containerId) {
+	    processBuilder.directory(new File(System.getProperty("user.home")));
+	    processBuilder.command("sh", "-c","docker kill " + containerId);
+	    runProcess(processBuilder);
+	}
+	
 	@Transactional
 	public Long rememberPort() {
 		List<ExecModulePort> portList = execModulePortRepository.findAll();
@@ -502,6 +596,11 @@ public class UserTaskController {
 			execModulePortRepository.save(port);
 		}
 		return portNumber;
+	}
+	
+	@Transactional
+	public void releasePort(Long port) {
+		execModulePortRepository.deleteByport(port);
 	}
 	
 }

@@ -7,5 +7,6 @@ import com.reflex.model.ExecModulePort;
 
 
 public interface ExecModulePortRepository extends JpaRepository<ExecModulePort, Long> {
-
+	
+	void deleteByport(Long port);
 }
