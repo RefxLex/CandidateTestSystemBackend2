@@ -54,7 +54,7 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/auth")
 public class AuthController {
 	
-	@Autowired
+	  @Autowired
 	  AuthenticationManager authenticationManager;
 
 	  @Autowired

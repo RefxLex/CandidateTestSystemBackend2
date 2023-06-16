@@ -2,57 +2,38 @@ package com.reflex.controller;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.TimerTask;
 import java.util.Timer;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.execchain.RequestAbortedException;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,18 +42,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reflex.model.ExecModulePort;
 import com.reflex.model.Task;
@@ -93,12 +67,14 @@ import com.reflex.response.UnitTestResultResponse;
 import com.reflex.request.CompleteUserTaskRequest;
 import com.reflex.model.UserTaskSolution;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.StringEntity;
 
@@ -119,13 +95,19 @@ public class UserTaskController {
 	@Autowired
 	ExecModulePortRepository execModulePortRepository;
 	
+    @Autowired 
+    private PlatformTransactionManager transactionManager;
+
+    @Autowired 
+    private EntityManager entityManager;
+
 	@Value("${execModuleUrl}")
 	private String execModuleUrl;
 	
 	@Value("${execModulePortPoolStartIndex}")
 	private String execModulePortPoolStartIndex;
 	
-	private static final int timeout=5000;
+	private static final int timeout=15000;
 	
 	@GetMapping("/{id}")
 	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){
@@ -210,13 +192,13 @@ public class UserTaskController {
 	}
 	
 	@PostMapping("/test-launch")
-	@Transactional
 	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
 		
 		// bind port
+
 		ProcessBuilder processBuilder = new ProcessBuilder();
 		Long port = rememberPort();
-		
+
 		// create container
 		String containerId = "";
 	    containerId = createContainer(processBuilder, port);
@@ -234,14 +216,16 @@ public class UserTaskController {
 		
 		// set timer for container to complete task
 		int hardTimeout = 15000;
-		TimerTask task = new TimerTask() {
+		Timer timer = new Timer();
+		TimerTask timerTask = new TimerTask() {
 		    @Override
 		    public void run() {	    		
 		    	// container stuck in loop
-			    post.abort();	    	
+			    post.abort();
+			    timer.cancel();
 		    }
 		};
-		new Timer(true).schedule(task, hardTimeout);
+		timer.schedule(timerTask, hardTimeout);
 		
 		try {
 			requestJSON = mapper.writeValueAsString(userTaskRequest);
@@ -249,6 +233,7 @@ public class UserTaskController {
 		}
 		catch(JsonProcessingException | UnsupportedEncodingException e) {
 			e.printStackTrace();
+			timer.cancel();
 			killContainer(processBuilder, containerId);
 			releasePort(port);
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -260,8 +245,10 @@ public class UserTaskController {
 	        	if(statusCode == 200) {		        	
 		            result = EntityUtils.toString(response.getEntity());
 		            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
+		            timer.cancel();
 	        	}
 	        	else {
+	        		timer.cancel();
 	        		killContainer(processBuilder, containerId);
 	        		releasePort(port);
 	        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
@@ -270,12 +257,14 @@ public class UserTaskController {
 	    }
 	    catch(HttpHostConnectException exception) {
 	    	exception.printStackTrace();
+	    	 timer.cancel();
 	    	killContainer(processBuilder, containerId);
 	    	releasePort(port);
 	        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
 	    }
         catch (IOException e) {
 			//e.printStackTrace();
+        	timer.cancel();
 			killContainer(processBuilder, containerId);
 			releasePort(port);
 	        Map<String, Object> response = new HashMap<>();
@@ -302,7 +291,6 @@ public class UserTaskController {
 	}
 	
 	@PutMapping("/complete/{id}")
-	@Transactional
 	public ResponseEntity<?> runAllUnitTests(@PathVariable("id") Long userTaskId, @Valid @RequestBody CompleteUserTaskRequest userTaskRequest){
 		
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
@@ -349,7 +337,7 @@ public class UserTaskController {
 			UnitTestResultResponse unitTestResult = new UnitTestResultResponse();
 			ObjectMapper mapper = new ObjectMapper();
 			String requestJSON = "";
-			HttpPost post = new HttpPost(execModuleUrl + ":8083" + "/api/exec-module/test-launch");
+			HttpPost post = new HttpPost(execModuleUrl + ":" + port + "/api/exec-module/test-launch");
 			post.addHeader("content-type", "application/json");
 			
 			// set timer for container to complete task
@@ -583,24 +571,52 @@ public class UserTaskController {
 	    runProcess(processBuilder);
 	}
 	
-	@Transactional
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "300")})
 	public Long rememberPort() {
-		List<ExecModulePort> portList = execModulePortRepository.findAll();
-		Long portNumber = Long.parseLong(execModulePortPoolStartIndex);
-		if(portList.isEmpty()) {
-			ExecModulePort port = new ExecModulePort(portNumber);
-			execModulePortRepository.save(port);
-		}else {
-			portNumber = portList.get(portList.size()-1).getPort();
-			ExecModulePort port = new ExecModulePort(portNumber+1);
-			execModulePortRepository.save(port);
-		}
+		
+		DefaultTransactionDefinition definition = new DefaultTransactionDefinition();
+		definition.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+		definition.setTimeout(-1);
+		
+	    TransactionStatus status = transactionManager.getTransaction(definition);	    
+	    Long portNumber = Long.parseLong(execModulePortPoolStartIndex);
+	    try {
+
+			List<ExecModulePort> portList = execModulePortRepository.findAll();
+			ExecModulePort port = new ExecModulePort();
+			if(portList.isEmpty()) {
+				port.setPort(portNumber);
+			}else {
+				portNumber = portList.get(portList.size()-1).getPort();
+				port.setPort(portNumber+1);
+			}
+	        entityManager.persist(port);
+	        transactionManager.commit(status);
+	    } catch (Exception ex) {
+	        transactionManager.rollback(status);
+	        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+	    }
 		return portNumber;
 	}
 	
-	@Transactional
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "300")})
 	public void releasePort(Long port) {
-		execModulePortRepository.deleteByport(port);
+		
+		DefaultTransactionDefinition definition = new DefaultTransactionDefinition();
+		definition.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+		definition.setTimeout(-1);
+	    TransactionStatus status = transactionManager.getTransaction(definition);
+	    
+	    try {
+	    	execModulePortRepository.deleteByport(port);
+	        transactionManager.commit(status);
+	    } catch (Exception ex) {
+	        transactionManager.rollback(status);
+	        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+	    }
+		
 	}
 	
 }
