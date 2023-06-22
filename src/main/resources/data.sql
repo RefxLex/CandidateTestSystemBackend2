@@ -10,12 +10,12 @@ INSERT INTO user_roles (user_id, role_id) VALUES ('1','3');
 INSERT INTO user_roles (user_id, role_id) VALUES ('2','2');
 INSERT INTO user_roles (user_id, role_id) VALUES ('3','1');
 
-INSERT INTO topics(name) VALUES ('Языки программирования');
-INSERT INTO topics(name) VALUES ('Алгоритмы');
+INSERT INTO topics(name, deleted) VALUES ('Языки программирования', false);
+INSERT INTO topics(name, deleted ) VALUES ('Алгоритмы', false);
 
-INSERT INTO task_difficulties(name) VALUES ('джун');
-INSERT INTO task_difficulties(name) VALUES ('мидл');
-INSERT INTO task_difficulties(name) VALUES ('сениор');
+INSERT INTO task_difficulties(name, deleted) VALUES ('джун', false);
+INSERT INTO task_difficulties(name, deleted) VALUES ('мидл', false);
+INSERT INTO task_difficulties(name, deleted) VALUES ('сениор', false);
 
 INSERT INTO user_profiles (email, user_name, password, full_name, phone, info, user_status) VALUES ('yak88@mail.ru','ERT5fgd','$2a$12$d1lleq2uZCemgyNCJ3BfR.cU8S6WKnCG7lj.JDRmzg14FC1odx6Ee', 'Яковлев Борис Геннадьевич', '+79843564364', 'JS разработчик, опыт 1 год', 'invited');
 INSERT INTO user_profiles (email, user_name, password, full_name, phone, info, user_status) VALUES ('shanna93@gmail.com','dfgtfgg','$2a$12$d1lleq2uZCemgyNCJ3BfR.cU8S6WKnCG7lj.JDRmzg14FC1odx6Ee', 'Снежинская Жанна Олеговна', '+793537355', 'Закончила курсы Skillbox по Java, без опыта работы', 'invited');
@@ -71,3 +71,11 @@ INSERT INTO task_ref_solutions (task_id, code) VALUES (2, 'cHVibGljIGNsYXNzIFNvb
 || 'ICAgICAgICBjYXNlICdMJzogbnVtID0gNTA7IGJyZWFrOw0KICAgICAgICAgICAgICAgIGNhc2UgJ0MnOiBudW0gPSAxMDA7IGJyZWFrOw0KICAgICAgICAgICAgICAgIGNhc2UgJ0QnOiBudW0gPSA1MDA7IGJyZ'
 || 'WFrOw0KICAgICAgICAgICAgICAgIGNhc2UgJ00nOiBudW0gPSAxMDAwOyBicmVhazsNCiAgICAgICAgICAgIH0NCiAgICAgICAgICAgIGlmICg0ICogbnVtIDwgYW5zKSBhbnMgLT0gbnVtOw0KICAgICAgICAgIC'
 || 'AgZWxzZSBhbnMgKz0gbnVtOw0KICAgICAgICB9DQogICAgICAgIHJldHVybiBhbnM7DQogICAgfQ0KDQp9');
+
+
+
+
+
+
+
+

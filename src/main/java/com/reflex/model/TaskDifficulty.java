@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name="task_difficulties")
+@Table(name="task_difficulties" , uniqueConstraints = { @UniqueConstraint(columnNames = { "name" }) })
 public class TaskDifficulty {
 	
 	@Id
@@ -16,6 +16,9 @@ public class TaskDifficulty {
 	@Size(max=30)
 	@Column(nullable = false)
 	private String name;
+	
+	@Column(nullable=false)
+	private boolean deleted = false;
 
 	public TaskDifficulty() {
 		
@@ -39,6 +42,14 @@ public class TaskDifficulty {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public boolean isDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
 	}
 	
 }

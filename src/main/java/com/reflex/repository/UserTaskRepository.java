@@ -17,6 +17,11 @@ public interface UserTaskRepository extends JpaRepository<UserTask, Long> {
 			  value = "SELECT * FROM user_tasks WHERE user_id = :userId",
 			  nativeQuery = true)
 	  List<UserTask> selectByUserId(@Param("userId") Long userId);
+	
+	  @Query(
+			  value = "SELECT * FROM user_tasks WHERE user_id = :userId AND id != :userTaskId",
+			  nativeQuery = true)
+	  List<UserTask> selectByUserIdExcludeOneById(@Param("userId") Long userId, @Param("userTaskId") Long userTaskId);
 	  
 	  @Query(
 			  value = "SELECT * FROM user_tasks WHERE assign_date >= :day AND assign_date < :next_day ",

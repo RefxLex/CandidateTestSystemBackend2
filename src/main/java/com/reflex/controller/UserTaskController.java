@@ -22,6 +22,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.repository.Lock;
@@ -64,8 +66,11 @@ import com.reflex.request.TestLaunchUserTaskRequest;
 import com.reflex.request.UnitTestRequest;
 import com.reflex.request.UpdateCommentRequest;
 import com.reflex.response.UnitTestResultResponse;
+import com.reflex.response.UserTaskSolutionResponse;
 import com.reflex.request.CompleteUserTaskRequest;
 import com.reflex.model.UserTaskSolution;
+import com.reflex.response.UserTaskResponse;
+import com.reflex.security.jwt.JwtUtils;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -109,7 +114,10 @@ public class UserTaskController {
 	
 	private static final int timeout=15000;
 	
-	@GetMapping("/{id}")
+	private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+	
+	@GetMapping("/find-one/{id}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<UserTask> getUserTask(@PathVariable ("id") Long userTaskId){
 		Optional <UserTask> userTask = userTaskRepository.findById(userTaskId);
 		if(userTask.isEmpty()) {
@@ -118,10 +126,75 @@ public class UserTaskController {
 		return new ResponseEntity<>(userTask.get(), HttpStatus.OK);
 	}
 	
-	@GetMapping("/find/{userId}")
-	public ResponseEntity<List<UserTask>> getUserTasksByUserId(@PathVariable ("userId") Long userId){
+	@GetMapping("/find-one-sol-unexposed/{id}")
+	@PreAuthorize("hasRole('USER')")
+	public ResponseEntity<UserTaskResponse> getUserTaskSolutionUnexposed(@PathVariable ("id") Long userTaskId){
+		Optional <UserTask> userTask = userTaskRepository.findById(userTaskId);
+		if(userTask.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user task found with id=" + userTaskId);
+		}
+		UserTask userTaskObj = userTask.get();
+		UserTaskResponse response = new UserTaskResponse();
+		response.setId(userTaskObj.getId());
+		response.setAssignDate(userTaskObj.getAssignDate());
+		response.setComment(userTaskObj.getComment());
+		response.setCompilationResult(userTaskObj.getCompilationResult());
+		response.setCompleted(userTaskObj.isCompleted());
+		response.setOverallTestsCount(userTaskObj.getOverallTestsCount());
+		response.setResultReport(userTaskObj.getResultReport());
+		response.setStartDate(userTaskObj.getStartDate());
+		response.setSubmitDate(userTaskObj.getSubmitDate());
+		response.setTaskDescription(userTaskObj.getTask().getDescription());
+		response.setTaskLanguageName(userTaskObj.getTask().getLanguageName());
+		response.setTaskName(userTaskObj.getTask().getName());
+		response.setTestsFailed(userTaskObj.getTestsFailed());
+		response.setTestsPassed(userTaskObj.getTestsPassed());
+		response.setTimeSpent(userTaskObj.getTimeSpent());
+		for(UserTaskSolution sol: userTaskObj.getUserTaskSolution()) {
+			UserTaskSolutionResponse solResponse = new UserTaskSolutionResponse(sol.getId(), sol.getCode());
+			response.getUserTaskSolution().add(solResponse);
+		}	
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+	
+	@GetMapping("/find-list-sol-unexposed/{userId}")
+	@PreAuthorize("hasRole('USER')")
+	public ResponseEntity<List<UserTaskResponse>> getUserTasksByUserIdSolutionUnexposed(@PathVariable ("userId") Long userId){
 		List<UserTask> userTasksList = new ArrayList<>();
 		userTasksList = userTaskRepository.selectByUserId(userId);
+		
+		List<UserTaskResponse> responseList = new ArrayList<>();
+		for(UserTask iterator: userTasksList) {
+			UserTaskResponse userTaskObj = new UserTaskResponse();
+			userTaskObj.setId(iterator.getId());
+			userTaskObj.setAssignDate(iterator.getAssignDate());
+			userTaskObj.setComment(iterator.getComment());
+			userTaskObj.setCompilationResult(iterator.getCompilationResult());
+			userTaskObj.setCompleted(iterator.isCompleted());
+			userTaskObj.setOverallTestsCount(iterator.getOverallTestsCount());
+			userTaskObj.setResultReport(iterator.getResultReport());
+			userTaskObj.setStartDate(iterator.getStartDate());
+			userTaskObj.setSubmitDate(iterator.getSubmitDate());
+			userTaskObj.setTaskDescription(iterator.getTask().getDescription());
+			userTaskObj.setTaskLanguageName(iterator.getTask().getLanguageName());
+			userTaskObj.setTaskName(iterator.getTask().getName());
+			userTaskObj.setTestsFailed(iterator.getTestsFailed());
+			userTaskObj.setTestsPassed(iterator.getTestsPassed());
+			userTaskObj.setTimeSpent(iterator.getTimeSpent());
+			for(UserTaskSolution sol: iterator.getUserTaskSolution()) {
+				UserTaskSolutionResponse solResponse = new UserTaskSolutionResponse(sol.getId(), sol.getCode());
+				userTaskObj.getUserTaskSolution().add(solResponse);
+			}
+			responseList.add(userTaskObj);
+		}
+		return new ResponseEntity<>(responseList, HttpStatus.OK);
+	}
+	
+	@GetMapping("/find-list/{userId}")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
+	public ResponseEntity<List<UserTask>> getUserTasksByUserId(@PathVariable ("userId") Long userId){
+		List<UserTask> userTasksList = new ArrayList<>();
+		userTasksList = userTaskRepository.selectByUserId(userId);		
 		return new ResponseEntity<>(userTasksList, HttpStatus.OK);
 	}
 	
@@ -192,6 +265,7 @@ public class UserTaskController {
 	}
 	
 	@PostMapping("/test-launch")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<?> runUserUnitTest(@Valid @RequestBody TestLaunchUserTaskRequest userTaskRequest){
 		
 		// bind port
@@ -222,7 +296,6 @@ public class UserTaskController {
 		    public void run() {	    		
 		    	// container stuck in loop
 			    post.abort();
-			    timer.cancel();
 		    }
 		};
 		timer.schedule(timerTask, hardTimeout);
@@ -257,13 +330,14 @@ public class UserTaskController {
 	    }
 	    catch(HttpHostConnectException exception) {
 	    	exception.printStackTrace();
-	    	 timer.cancel();
+	    	timer.cancel();
 	    	killContainer(processBuilder, containerId);
 	    	releasePort(port);
 	        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
 	    }
         catch (IOException e) {
-			//e.printStackTrace();
+			e.printStackTrace();
+			logger.error("io excp " + e.getMessage());
         	timer.cancel();
 			killContainer(processBuilder, containerId);
 			releasePort(port);
@@ -291,6 +365,7 @@ public class UserTaskController {
 	}
 	
 	@PutMapping("/complete/{id}")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<?> runAllUnitTests(@PathVariable("id") Long userTaskId, @Valid @RequestBody CompleteUserTaskRequest userTaskRequest){
 		
 		Optional<UserTask> userTask = userTaskRepository.findById(userTaskId);
@@ -342,14 +417,15 @@ public class UserTaskController {
 			
 			// set timer for container to complete task
 			int hardTimeout = 15000;
-			TimerTask task = new TimerTask() {
+			Timer timer = new Timer();
+			TimerTask timerTask = new TimerTask() {
 			    @Override
 			    public void run() {	    		
 			    	// container stuck in loop
-				    post.abort();	    	
+				    post.abort();
 			    }
 			};
-			new Timer(true).schedule(task, hardTimeout);
+			timer.schedule(timerTask, hardTimeout);
 			
 			try {
 				requestJSON = mapper.writeValueAsString(execModuleRequest);
@@ -357,8 +433,10 @@ public class UserTaskController {
 			}
 			catch(JsonProcessingException | UnsupportedEncodingException e) {
 				e.printStackTrace();
+				timer.cancel();
 				killContainer(processBuilder, containerId);
 				releasePort(port);
+				logger.error("encoding" + e.getMessage());
 				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 	     
@@ -368,21 +446,26 @@ public class UserTaskController {
 		        	if(statusCode == 200) {		        	
 			            result = EntityUtils.toString(response.getEntity());
 			            unitTestResult = mapper.readValue(result, UnitTestResultResponse.class);
+			            timer.cancel();
 		        	}
 		        	else {
+		        		timer.cancel();
 		        		killContainer(processBuilder, containerId);
 		        		releasePort(port);
+		        		logger.error("Exec module error");
 		        		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Exec module error" + response.getStatusLine().getReasonPhrase());
 		        	}
 		                        
 		    }
 		    catch(HttpHostConnectException exception) {
 		    	exception.printStackTrace();
+		    	timer.cancel();
 		    	killContainer(processBuilder, containerId);
 		    	releasePort(port);
 		        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error connecting to exec module");
 		    }
 		    catch (IOException e) {
+		    	timer.cancel();
 				killContainer(processBuilder, containerId);
 				releasePort(port);
 			    Map<String, Object> response = new HashMap<>();
@@ -435,7 +518,7 @@ public class UserTaskController {
 	    
 	     // check if user done all tasks
 	     	boolean tasksDone=true;
-	     	List<UserTask> userTasks = userTaskRepository.selectByUserId(newUserTask.getUser().getId());
+	     	List<UserTask> userTasks = userTaskRepository.selectByUserIdExcludeOneById(newUserTask.getUser().getId(), userTaskId);
 	     	for (UserTask iterator: userTasks) {
 	     		if(iterator.getSubmitDate()==null) {
 	     			tasksDone = false;
@@ -526,6 +609,7 @@ public class UserTaskController {
             return result;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            logger.error("io excp" + e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
         }
 
@@ -549,16 +633,17 @@ public class UserTaskController {
             }                 
             int exitCode = process.waitFor();
             if(exitCode != 0) {
-            	// failed to create docker container
+            	logger.error("failed to create docker container");
             	throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR); 
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            logger.error("io excp" + e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);  
         }	    	
     	System.out.println("started container with id= " + containerId + " and port=" + port);	    	
     	try {
-			Thread.sleep(2000);
+			Thread.sleep(3000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -583,18 +668,25 @@ public class UserTaskController {
 	    Long portNumber = Long.parseLong(execModulePortPoolStartIndex);
 	    try {
 
-			List<ExecModulePort> portList = execModulePortRepository.findAll();
+	    	List<ExecModulePort> portList = execModulePortRepository.findAll();
+			List<ExecModulePort> availablePortList = execModulePortRepository.selectNotActive();
 			ExecModulePort port = new ExecModulePort();
-			if(portList.isEmpty()) {
-				port.setPort(portNumber);
-			}else {
-				portNumber = portList.get(portList.size()-1).getPort();
-				port.setPort(portNumber+1);
+			if(portList.isEmpty() == false) {	// set port = execModulePortPoolStartIndex if empty	
+				if(availablePortList.isEmpty()) {
+					// get last
+					portNumber = portList.get(portList.size()-1).getPort() + 1;
+				}else {
+					portNumber = availablePortList.get(0).getPort();
+				}
 			}
-	        entityManager.persist(port);
+			port.setPort(portNumber);
+			port.setActive(true);
+			execModulePortRepository.save(port);
+	        //entityManager.persist(port);
 	        transactionManager.commit(status);
 	    } catch (Exception ex) {
 	        transactionManager.rollback(status);
+	        logger.error("bind port transaction error" + ex.getMessage());
 	        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 	    }
 		return portNumber;
@@ -602,7 +694,7 @@ public class UserTaskController {
 	
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "300")})
-	public void releasePort(Long port) {
+	public void releasePort(Long portNumber) {
 		
 		DefaultTransactionDefinition definition = new DefaultTransactionDefinition();
 		definition.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
@@ -610,10 +702,19 @@ public class UserTaskController {
 	    TransactionStatus status = transactionManager.getTransaction(definition);
 	    
 	    try {
-	    	execModulePortRepository.deleteByport(port);
+	    	Optional<ExecModulePort> port = execModulePortRepository.findByport(portNumber);
+	    	if(port.isEmpty()) {
+	    		logger.error("closable port not found");
+	    		throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+	    	}
+	    	ExecModulePort newPort = port.get();
+	    	newPort.setActive(false);
+	    	//entityManager.persist(portObj);
+			execModulePortRepository.save(newPort);
 	        transactionManager.commit(status);
 	    } catch (Exception ex) {
 	        transactionManager.rollback(status);
+	        logger.error("remove port transaction error" + ex.getMessage());
 	        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 	    }
 		

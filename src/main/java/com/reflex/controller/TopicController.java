@@ -52,8 +52,14 @@ public class TopicController {
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<Topic> createTopic(@Valid @RequestBody TopicRequest topicRequest){
 		
-		if(topicRepository.existsByname(topicRequest.getName())) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic already exist");
+		Optional<Topic> duplicateTopic = topicRepository.findByname(topicRequest.getName());
+		if(duplicateTopic.isPresent()) {
+			if(duplicateTopic.get().isDeleted()) {
+				duplicateTopic.get().setDeleted(false);
+				return new ResponseEntity<>(topicRepository.save(duplicateTopic.get()), HttpStatus.CREATED);
+			}else {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic already exist");
+			}
 		}
 		Topic topic = new Topic(topicRequest.getName());
 		return new ResponseEntity<>(topicRepository.save(topic), HttpStatus.CREATED);
@@ -69,6 +75,19 @@ public class TopicController {
 		Topic newTopic = oldTopic.get();
 		newTopic.setName(topicRequest.getName());
 		return new ResponseEntity<>(topicRepository.save(newTopic), HttpStatus.OK);
+	}
+	
+	@PutMapping("/delete/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<?> softDeleteTopic(@PathVariable("id") Long topicId){
+		Optional<Topic> oldTopic = topicRepository.findById(topicId);
+		if(oldTopic.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + topicId);
+		}
+		Topic newTopic = oldTopic.get();
+		newTopic.setDeleted(true);
+		topicRepository.save(newTopic);
+		return new ResponseEntity<>(null, HttpStatus.OK);
 	}
 	
 }

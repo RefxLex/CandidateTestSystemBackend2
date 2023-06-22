@@ -8,13 +8,16 @@ public class ExecModulePort {
 		
 	@Id
 	private Long port;
+	
+	@Column(nullable = false)
+	private boolean active;
 
 	public ExecModulePort() {
 		
 	}
 
-	public ExecModulePort(Long port) {
-
+	public ExecModulePort(Long port, boolean active) {
+		this.active = active;
 		this.port = port;
 	}
 
@@ -24,6 +27,14 @@ public class ExecModulePort {
 
 	public void setPort(Long port) {
 		this.port = port;
+	}
+
+	public boolean isActive() {
+		return active;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
 	}
 	
 }

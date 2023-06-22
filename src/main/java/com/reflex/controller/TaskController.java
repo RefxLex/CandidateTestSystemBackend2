@@ -75,6 +75,7 @@ public class TaskController {
 	}
 	
 	@GetMapping("/languages")
+	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<?> getSupportedLanguages(){
 		List<SupportedLanguages> langList = Arrays.asList(SupportedLanguages.class.getEnumConstants());
         return new ResponseEntity<>(langList, HttpStatus.OK);
@@ -126,13 +127,18 @@ public class TaskController {
 
         Optional<TaskDifficulty> difficulty = Optional.ofNullable(taskDifficultyRepository.findById(taskRequest.getDifficultyId()).orElseThrow(() ->
         new ResponseStatusException(HttpStatus.NOT_FOUND, "No difficulty level found with id=" + taskRequest.getDifficultyId() )));
-        
+                
         Optional<SupportedLanguages> lang = SupportedLanguages.byNameIgnoreCase(taskRequest.getLanguageName());
         int langCode = 0;
         if(lang.isPresent()) {
         	langCode = lang.get().getCode();
         }else {
         	throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        
+        Optional<Task> duplicateTask = taskRepository.selectByNameAndLangId(taskRequest.getName(), langCode);
+        if(duplicateTask.isPresent()) {
+        	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task name already taken");
         }
         
         Task task = new Task(

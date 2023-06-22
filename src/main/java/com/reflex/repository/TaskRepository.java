@@ -21,6 +21,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 	Optional<Task> findBytaskCodeLanguageId(int langId);
 	
 	@Query(
+			  value = "SELECT * FROM tasks WHERE name = :name AND language_id = :lang_id",
+			  nativeQuery = true)
+	Optional<Task> selectByNameAndLangId(@Param("name") String name, @Param("lang_id") int langId);
+	
+	@Query(
 			  value = "SELECT * FROM tasks WHERE name LIKE :name% AND deleted = false",
 			  nativeQuery = true)
 	List<Task> selectByName(@Param("name") String name);
