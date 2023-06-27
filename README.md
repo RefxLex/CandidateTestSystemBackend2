@@ -1,1 +1,2 @@
 # CandidateTestSystemBackend
+Серверная часть системы тестирования кандидатов: Основное приложение. Техническое задание на разработку системы приведено здесь - https://github.com/RefxLex/candidatetestsystemdocs

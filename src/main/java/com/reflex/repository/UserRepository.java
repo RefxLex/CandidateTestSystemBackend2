@@ -28,6 +28,16 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	  Boolean existsByphone(String phone);
 	  
 	  @Query(
+			  value = "SELECT * FROM user_profiles WHERE email = :email AND id != :userId",
+			  nativeQuery = true)
+	  List<User> selectByEmailExcludeOneById(@Param("email") String email, @Param("userId") Long userId);
+	  
+	  @Query(
+			  value = "SELECT * FROM user_profiles WHERE phone = :phone AND id != :userId",
+			  nativeQuery = true)
+	  List<User> selectByPhoneExcludeOneById(@Param("phone") String phone, @Param("userId") Long userId);
+	  
+	  @Query(
 			  value = "SELECT * FROM user_profiles WHERE user_status = :status AND user_status != 'none' ",
 			  nativeQuery = true)
 	  List<User> selectByUserStatus(@Param("status") String status);

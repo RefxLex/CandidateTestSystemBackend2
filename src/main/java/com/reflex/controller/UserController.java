@@ -146,13 +146,13 @@ public class UserController {
     
 	@PostMapping("/create")
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	  public ResponseEntity<User> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
+	  public ResponseEntity<?> createUser(@Valid @RequestBody SignupRequest signUpRequest) {
 		  
 	    if (userRepository.existsByemail(signUpRequest.getEmail())) {
-	      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is already in use!");
+	      return ResponseEntity.badRequest().body(new MessageResponse("Email is already in use!"));
 	    }
 	    if(userRepository.existsByphone(signUpRequest.getPhone())) {
-	    	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone is already in use!");
+	    	return ResponseEntity.badRequest().body(new MessageResponse("Phone is already in use!"));
 	    }
 	    
         int passwordLength = 10 + new Random().nextInt(15 - 5 + 1);
@@ -176,7 +176,7 @@ public class UserController {
 	    user.setRoles(roles);
 
 	    
-	    // sent email
+	    // send email
 	    // include in production testing
 	    /*
 	    String smtpHostServer = smtpDomain;
@@ -268,21 +268,28 @@ public class UserController {
 	
 	  @PutMapping("/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-	  public ResponseEntity<User> updateUserProfile(@PathVariable("id") Long id, @Valid @RequestBody SignupRequest signUpRequest) {
-	        Optional<User> oldUser = Optional.ofNullable(userRepository.findById(id).orElseThrow(() ->
-	                new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User")));
-	        if (oldUser.isPresent()) {
-	            User newUser = oldUser.get();
-	            newUser.setEmail(signUpRequest.getEmail());
-	            newUser.setFullName(signUpRequest.getFullName());
-	            newUser.setPhone(signUpRequest.getPhone());
-	            newUser.setInfo(signUpRequest.getInfo());
-	            
-	            return new ResponseEntity<>(userRepository.save(newUser), HttpStatus.OK);
-	        } else {
-	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such User");
+	  public ResponseEntity<?> updateUserProfile(@PathVariable("id") Long id, @Valid @RequestBody SignupRequest signUpRequest) {
+	        Optional<User> oldUser = userRepository.findById(id);
+	        if(oldUser.isEmpty()) {
+	        	throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No user found with id= " + id);
 	        }
-	    }
+	        
+	        List<User> duplicateEmailList = userRepository.selectByEmailExcludeOneById(signUpRequest.getEmail(), id);
+	        List<User> duplicatePhoneList = userRepository.selectByPhoneExcludeOneById(signUpRequest.getPhone(), id);
+	        if(duplicateEmailList.isEmpty()==false) {
+	        	return ResponseEntity.badRequest().body(new MessageResponse("Email is already in use!"));
+	        }
+	        if(duplicatePhoneList.isEmpty()==false) {
+	        	return ResponseEntity.badRequest().body(new MessageResponse("Phone is already in use!"));
+	        }
+
+	        User newUser = oldUser.get();
+	        newUser.setEmail(signUpRequest.getEmail());
+	        newUser.setFullName(signUpRequest.getFullName());
+	        newUser.setPhone(signUpRequest.getPhone());
+	        newUser.setInfo(signUpRequest.getInfo());            
+	        return new ResponseEntity<>(userRepository.save(newUser), HttpStatus.OK);        
+	  }
 
 	  @DeleteMapping("/{id}")
 	  @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
