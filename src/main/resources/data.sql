@@ -10,8 +10,8 @@ INSERT INTO user_roles (user_id, role_id) VALUES ('1','3');
 INSERT INTO user_roles (user_id, role_id) VALUES ('2','2');
 INSERT INTO user_roles (user_id, role_id) VALUES ('3','1');
 
-INSERT INTO topics(name, deleted) VALUES ('Языки программирования', false);
-INSERT INTO topics(name, deleted ) VALUES ('Алгоритмы', false);
+INSERT INTO topics(name) VALUES ('Языки программирования');
+INSERT INTO topics(name) VALUES ('Алгоритмы');
 
 INSERT INTO task_difficulties(name, deleted) VALUES ('джун', false);
 INSERT INTO task_difficulties(name, deleted) VALUES ('мидл', false);

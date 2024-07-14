@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,7 +41,7 @@ public class TopicController {
         return new ResponseEntity<>(topic.get(), HttpStatus.OK);
 	}
 	
-	@GetMapping("/all")
+	@GetMapping
 	@PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
 	public ResponseEntity<List<Topic>> getAllTopics(){
 		List<Topic> topicList = new ArrayList<Topic>();
@@ -48,18 +49,12 @@ public class TopicController {
 		return new ResponseEntity<>(topicList, HttpStatus.OK);
 	}
 	
-	@PostMapping("/create")
+	@PostMapping
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<Topic> createTopic(@Valid @RequestBody TopicRequest topicRequest){
-		
 		Optional<Topic> duplicateTopic = topicRepository.findByname(topicRequest.getName());
-		if(duplicateTopic.isPresent()) {
-			if(duplicateTopic.get().isDeleted()) {
-				duplicateTopic.get().setDeleted(false);
-				return new ResponseEntity<>(topicRepository.save(duplicateTopic.get()), HttpStatus.CREATED);
-			}else {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic already exist");
-			}
+		if(duplicateTopic.isPresent()) {		
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic already exist");
 		}
 		Topic topic = new Topic(topicRequest.getName());
 		return new ResponseEntity<>(topicRepository.save(topic), HttpStatus.CREATED);
@@ -77,17 +72,15 @@ public class TopicController {
 		return new ResponseEntity<>(topicRepository.save(newTopic), HttpStatus.OK);
 	}
 	
-	@PutMapping("/delete/{id}")
+	@DeleteMapping("{id}")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> softDeleteTopic(@PathVariable("id") Long topicId){
 		Optional<Topic> oldTopic = topicRepository.findById(topicId);
 		if(oldTopic.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No topic found with id=" + topicId);
 		}
-		Topic newTopic = oldTopic.get();
-		newTopic.setDeleted(true);
-		topicRepository.save(newTopic);
-		return new ResponseEntity<>(null, HttpStatus.OK);
+		topicRepository.delete(oldTopic.get());
+		return new ResponseEntity<>(null, HttpStatus.NO_CONTENT);
 	}
 	
 }

@@ -16,10 +16,7 @@ public class Topic {
 	@Size(max=70)
 	@Column(nullable=false)
 	private String name;
-	
-	@Column(nullable=false)
-	private boolean deleted = false;
-	
+		
 	public Topic() {
 		
 	}
@@ -44,14 +41,6 @@ public class Topic {
 		this.name = name;
 	}
 	
-	public boolean isDeleted() {
-		return deleted;
-	}
-
-	public void setDeleted(boolean deleted) {
-		this.deleted = deleted;
-	}
-
 	@Override
 	public String toString() {
 		return "Topic [id=" + id + ", name=" + name + "]";

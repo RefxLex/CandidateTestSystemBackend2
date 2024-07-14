@@ -27,8 +27,8 @@ public class Task {
 	private String name;
 	
 	@ManyToOne(fetch=FetchType.LAZY, optional=false)
-	@JoinColumn(name="topic_id", nullable=false)
-	@OnDelete(action=OnDeleteAction.CASCADE)
+	@JoinColumn(name="topic_id", nullable=true)
+	@OnDelete(action=OnDeleteAction.NO_ACTION)
 	@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 	public Topic topic;
 	
